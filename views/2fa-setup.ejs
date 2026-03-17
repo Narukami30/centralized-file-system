@@ -1,0 +1,70 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: '2FA Setup | Centralized File System',
+    description: '2FA Setup - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/2fa-setup.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+  <div class="particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
+  <div class="gradient-orb gradient-orb-1"></div>
+  <div class="gradient-orb gradient-orb-2"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="logo-wrapper"><i class="ri-shield-check-fill"></i></div>
+        <h1>Two-Factor Setup</h1>
+        <p>Add an extra layer of security to your account</p>
+      </div>
+
+      <div class="steps">
+        <div class="step active"><span class="num">1</span> Scan QR</div>
+        <div class="step-connector"></div>
+        <div class="step active"><span class="num">2</span> Verify Code</div>
+      </div>
+
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="banner success"><i class="ri-checkbox-circle-fill"></i> <%= success %></div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="banner error"><i class="ri-error-warning-fill"></i> <%= error %></div>
+      <% } %>
+
+      <div class="help-text">
+        <p><strong>Step 1:</strong> Open your authenticator app (Google Authenticator, Authy, etc.)</p>
+        <p><strong>Step 2:</strong> Scan the QR code below or manually enter the secret key</p>
+        <p><strong>Step 3:</strong> Enter the 6-digit code shown in the app to verify</p>
+      </div>
+
+      <div class="qr-section">
+        <img src="<%= qrDataUrl %>" alt="Scan this QR code with your authenticator app" />
+      </div>
+
+      <div class="secret-key">
+        <div class="label">Manual Entry Key</div>
+        <div class="key"><%= secret %></div>
+      </div>
+
+      <form method="POST" action="/auth/2fa/setup">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="form-group">
+          <label for="totpCode">Verification Code</label>
+          <div class="input-wrapper">
+            <i class="ri-key-line input-icon"></i>
+            <input type="text" id="totpCode" name="totpCode" placeholder="000000" required
+              maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
+          </div>
+        </div>
+        <button type="submit" class="submit-btn"><i class="ri-shield-check-fill"></i> Enable 2FA</button>
+      </form>
+
+      <div class="cancel-link">
+        <a href="/dashboard">Cancel and go back</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

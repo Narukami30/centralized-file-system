@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'Login | Centralized File System',
+    description: 'Login - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/login.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+  <!-- Particles -->
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <!-- Gradient Orbs -->
+  <div class="gradient-orb gradient-orb-1"></div>
+  <div class="gradient-orb gradient-orb-2"></div>
+
+  <!-- Back Link -->
+  <a href="/" class="back-link">
+    <i class="ri-arrow-left-line"></i>
+    Back to Home
+  </a>
+
+  <div class="container">
+    <div class="login-card">
+      <!-- Header -->
+      <div class="login-header">
+        <div class="logo-wrapper">
+          <i class="ri-folder-lock-fill"></i>
+        </div>
+        <h1>Welcome Back</h1>
+        <p>Sign in to access your files securely</p>
+      </div>
+
+      <!-- Notifications -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="banner success">
+          <i class="ri-checkbox-circle-fill"></i>
+          <%= success %>
+        </div>
+      <% } %>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="banner error">
+          <i class="ri-error-warning-fill"></i>
+          <%= error %>
+        </div>
+      <% } %>
+
+      <!-- Login Form -->
+      <form id="loginForm" action="/auth/login" method="POST">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div class="input-wrapper">
+            <i class="ri-mail-line input-icon"></i>
+            <input 
+              type="email" 
+              id="email" 
+              name="email"
+              placeholder="your@email.com" 
+              required 
+              autocomplete="email"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <i class="ri-lock-2-line input-icon"></i>
+            <input 
+              type="password" 
+              id="password" 
+              name="password"
+              placeholder="Enter your password" 
+              required 
+              autocomplete="current-password"
+            />
+            <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Toggle password visibility">
+              <i class="ri-eye-off-line" id="toggleIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="forgot-password-row">
+          <a href="/auth/forgot-password" class="forgot-password-link">
+            <i class="ri-key-2-line"></i> Forgot password?
+          </a>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span class="btn-text">Sign In</span>
+          <span class="spinner"></span>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span class="divider-text">New to CFS?</span>
+      </div>
+
+      <!-- Register Link -->
+      <div class="register-link">
+        <p>Create your account in seconds</p>
+        <a href="/auth/register">
+          Get Started Free
+          <i class="ri-arrow-right-line"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("loginForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const passwordInput = document.getElementById("password");
+    const toggleIcon = document.getElementById("toggleIcon");
+
+    // Toggle password visibility
+    function togglePassword() {
+      const type = passwordInput.type === 'password' ? 'text' : 'password';
+      passwordInput.type = type;
+      toggleIcon.className = type === 'password' ? 'ri-eye-off-line' : 'ri-eye-line';
+    }
+
+    // Form submission
+    loginForm.addEventListener("submit", (event) => {
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+    });
+
+    // Reset button on page show (back/forward navigation)
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

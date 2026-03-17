@@ -1,0 +1,98 @@
+<%# views/partials/sidebar.ejs
+   Expects locals: title (string), items (array of {href, label, icon?, active?}), role (string, optional)
+%>
+<!-- Mobile hamburger toggle -->
+<button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation">
+  <i class="ri-menu-line"></i>
+</button>
+<!-- Mobile dark mode toggle (visible when sidebar hidden) -->
+<button class="mobile-theme-toggle" id="mobileThemeBtn" type="button" aria-label="Toggle dark mode">
+  <i class="ri-moon-line"></i>
+</button>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<aside class="sidebar" id="sidebarNav">
+  <h2><i class="ri-<%= typeof sidebarIcon !== 'undefined' && sidebarIcon ? sidebarIcon : 'dashboard-line' %>"></i> <%= title %></h2>
+  <ul>
+    <% items.forEach(function(item) { %>
+      <li>
+        <a href="<%= item.href %>"<%= item.active ? ' class="active"' : '' %>>
+          <% if (item.icon) { %><i class="ri-<%= item.icon %>"></i> <% } %><%= item.label %>
+          <% if (item.badge) { %><span class="sidebar-badge" id="<%= item.badgeId || '' %>"><%= item.badge %></span><% } %>
+        </a>
+      </li>
+    <% }) %>
+
+    <% if (typeof role !== 'undefined' && role && role !== 'user') { %>
+      <li class="sidebar-divider">
+        <% if (role === 'admin') { %>
+          <a href="/auth/admin"><i class="ri-settings-3-line"></i> Admin Panel</a>
+        <% } else if (role === 'super_admin') { %>
+          <a href="/auth/super"><i class="ri-shield-star-line"></i> Super Admin Panel</a>
+        <% } %>
+      </li>
+    <% } %>
+
+    <li><button id="themeToggleBtn" class="theme-toggle" type="button"><i class="ri-moon-line"></i> Dark Mode</button></li>
+    <li><a href="/auth/logout"><i class="ri-logout-box-r-line"></i> Logout</a></li>
+  </ul>
+</aside>
+
+<script>
+(function() {
+  var toggle = document.getElementById('sidebarToggle');
+  var sidebar = document.getElementById('sidebarNav');
+  var backdrop = document.getElementById('sidebarBackdrop');
+  function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
+  function openSidebar() { sidebar.classList.add('open'); backdrop.classList.add('show'); }
+  if (toggle) toggle.addEventListener('click', function() {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+  // Mobile theme toggle sync
+  var mobileTheme = document.getElementById('mobileThemeBtn');
+  if (mobileTheme) {
+    function syncMobileIcon() {
+      var dark = document.body.classList.contains('dark-mode');
+      mobileTheme.innerHTML = dark ? '<i class="ri-sun-line"></i>' : '<i class="ri-moon-line"></i>';
+    }
+    mobileTheme.addEventListener('click', function() {
+      var next = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+      localStorage.setItem('app-theme', next);
+      document.body.classList.toggle('dark-mode', next === 'dark');
+      var dtBtn = document.getElementById('themeToggleBtn');
+      if (dtBtn) dtBtn.innerHTML = next === 'dark' ? '<i class="ri-sun-line"></i> Light Mode' : '<i class="ri-moon-line"></i> Dark Mode';
+      syncMobileIcon();
+    });
+    syncMobileIcon();
+    new MutationObserver(syncMobileIcon).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // Auto-detect active sidebar link from URL
+  var path = window.location.pathname;
+  sidebar.querySelectorAll('ul a[href]').forEach(function(a) {
+    a.classList.remove('active');
+    if (a.getAttribute('href') === path) a.classList.add('active');
+  });
+
+  // Fetch unread notification count for badge
+  (function fetchUnreadBadge() {
+    var notifLink = sidebar.querySelector('a[href="/auth/notifications"]');
+    if (!notifLink) return;
+    fetch('/notifications/unread-count', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success || !data.count) return;
+        var badge = notifLink.querySelector('.sidebar-badge');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'sidebar-badge';
+          notifLink.appendChild(badge);
+        }
+        badge.textContent = data.count > 99 ? '99+' : data.count;
+      })
+      .catch(function() {});
+  })();
+})();
+</script>

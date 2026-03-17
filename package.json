@@ -1,0 +1,51 @@
+{
+  "name": "centralized-file-system",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:clean": "node scripts/start-clean.js",
+    "jwt:keys": "node scripts/generate-jwt-keys.js",
+    "test": "mocha test/**/*.test.js --timeout 10000",
+    "backup": "node scripts/backup.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "dotenv": "^17.3.1",
+    "ejs": "^4.0.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.0",
+    "firebase": "^12.8.0",
+    "firebase-admin": "^12.7.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.11.0",
+    "mongoose": "^9.1.5",
+    "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
+    "otpauth": "^9.5.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.2",
+    "web-push": "^3.6.7",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "chai": "^6.2.2",
+    "mocha": "^11.7.5"
+  },
+  "overrides": {
+    "serialize-javascript": "7.0.4",
+    "mocha": {
+      "diff": "8.0.3",
+      "serialize-javascript": "7.0.4"
+    },
+    "@tootallnate/once": "3.0.1"
+  }
+}

@@ -1,0 +1,171 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'Reports | Centralized File System',
+    description: 'Reports - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/dashboard.css', '/css/reports.css', '/css/system-refresh.css']
+  }) %>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="dashboard-container">
+    <%- include('partials/sidebar', {
+      title: 'Dashboard',
+      sidebarIcon: 'ri-dashboard-line',
+      items: [
+        { href: '/auth/user', label: 'My Files', icon: 'ri-folder-3-line' },
+        { href: '/auth/notifications', label: 'Notifications', icon: 'ri-notification-3-line' },
+        { href: '/auth/reports', label: 'Reports', icon: 'ri-bar-chart-box-line', active: true }
+      ],
+      role: typeof role !== 'undefined' ? role : ''
+    }) %>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="card">
+        <h2>Activity Reports</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>File Name</th>
+              <th>Action</th>
+              <th>Date</th>
+              <th>User</th>
+              <th>Branch</th>
+            </tr>
+          </thead>
+        <tbody>
+            <% if (reports.length > 0) { %>
+                <% reports.forEach(r => { %>
+                <tr>
+                    <td><%= r.filename %></td>
+                    <td><%= r.action %></td>
+                    <td><%= r.date ? new Date(r.date).toDateString() : "N/A" %></td>
+                    <td><%= r.user %></td>
+                <td><%= r.branch || 'N/A' %></td>
+                </tr>
+                <% }) %>
+            <% } else { %>
+              <tr><td colspan="5">No activity yet</td></tr>
+            <% } %>
+        </tbody>
+        </table>
+      </div>
+
+      <div class="report-charts-row">
+        <!-- Pie Chart -->
+        <div class="card compact-report-card">
+          <h2><i class="ri-pie-chart-line"></i> File Type Distribution</h2>
+          <div id="pieLoader" class="chart-loader"><i class="ri-loader-4-line ri-spin"></i> Loading chart...</div>
+          <canvas id="pieChart" class="compact-chart" style="display:none;"></canvas>
+          <div id="reportsError" style="color:#dc2626; margin-top:12px; display:none;"></div>
+        </div>
+
+        <!-- Line Chart -->
+        <div class="card compact-report-card"> 
+          <h2><i class="ri-line-chart-line"></i> Uploads Over Time</h2>
+          <div id="lineLoader" class="chart-loader"><i class="ri-loader-4-line ri-spin"></i> Loading chart...</div>
+          <canvas id="lineChart" class="compact-chart" style="display:none;"></canvas>
+        </div>
+      </div>
+
+      <!-- Generate Report Button -->
+      <div class="card">
+        <button class="generate-btn" onclick="generateReport()"><i class="ri-file-chart-line"></i> Generate Report</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/requestHelpers.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/theme.js"></script>
+  <script>
+    const { requestJson } = window.RequestHelpers;
+
+    // Fetch active report data for charts
+    async function loadReportData() {
+      const errorDiv = document.getElementById('reportsError');
+      const pieLoader = document.getElementById('pieLoader');
+      const lineLoader = document.getElementById('lineLoader');
+      const pieCanvas = document.getElementById('pieChart');
+      const lineCanvas = document.getElementById('lineChart');
+      try {
+        const payload = await requestJson('/auth/reports/data');
+        if (!payload.success) throw new Error(payload.message || 'No report data');
+
+        const stats = payload.stats || { fileTypeCounts: { documents:0, images:0, others:0 }, uploadsArray: [] };
+
+        const ftc = stats.fileTypeCounts;
+        const totalFiles = (ftc.documents || 0) + (ftc.images || 0) + (ftc.others || 0);
+        const hasUploads = stats.uploadsArray && stats.uploadsArray.length > 0;
+
+        // Pie chart
+        pieLoader.style.display = 'none';
+        if (totalFiles === 0) {
+          pieCanvas.parentNode.insertAdjacentHTML('beforeend', '<div class="empty-state"><i class="ri-pie-chart-line"></i><p>No file data yet</p><span style="font-size:0.88rem;color:#999;">Upload files to see the distribution chart</span></div>');
+        } else {
+          pieCanvas.style.display = '';
+          new Chart(pieCanvas, {
+            type: 'pie',
+            data: {
+              labels: ['Documents', 'Images', 'Others'],
+              datasets: [{
+                data: [ftc.documents, ftc.images, ftc.others],
+                backgroundColor: ['#D4AF37', '#111827', '#C1121F'],
+                borderColor: ['rgba(212, 175, 55, 0.5)', 'rgba(17, 24, 39, 0.5)', 'rgba(193, 18, 31, 0.5)'],
+                borderWidth: 2
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+
+        // Line chart
+        lineLoader.style.display = 'none';
+        if (!hasUploads) {
+          lineCanvas.parentNode.insertAdjacentHTML('beforeend', '<div class="empty-state"><i class="ri-line-chart-line"></i><p>No upload history</p><span style="font-size:0.88rem;color:#999;">Upload activity will appear here over time</span></div>');
+        } else {
+          lineCanvas.style.display = '';
+          new Chart(lineCanvas, {
+            type: 'line',
+            data: {
+              labels: stats.uploadsArray.map(u => u.date),
+              datasets: [{ label: 'Uploads', data: stats.uploadsArray.map(u => u.count), borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.1)', fill: true }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+
+        // Populate table dynamically if needed (replace static rows)
+        if (payload.reports && payload.reports.length) {
+          const tbody = document.querySelector('table tbody');
+          tbody.innerHTML = '';
+          payload.reports.forEach(r => {
+            const tr = document.createElement('tr');
+            const dateText = r.date ? new Date(r.date).toDateString() : 'N/A';
+            tr.innerHTML = `<td>${r.filename}</td><td>${r.action}</td><td>${dateText}</td><td>${r.user}</td><td>${r.branch || 'N/A'}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        errorDiv.style.display = 'none';
+      } catch (err) {
+        console.error('Load report data error:', err);
+        pieLoader.style.display = 'none';
+        lineLoader.style.display = 'none';
+        const errorDiv = document.getElementById('reportsError');
+        errorDiv.textContent = 'Error loading reports: ' + err.message;
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    loadReportData();
+
+    // Generate Report Button
+    function generateReport() {
+      alert("Report generated successfully! (You can extend this to export PDF/CSV)");
+    }
+  </script>
+</body>
+</html>
+

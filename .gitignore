@@ -1,0 +1,9 @@
+node_modules/
+.env
+config/keys/*.pem
+serviceAccountKey.json
+compass-connections.json
+uploads/*
+!uploads/.gitkeep
+logs/
+hash.js

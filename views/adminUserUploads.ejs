@@ -1,0 +1,105 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'User Uploads | Centralized File System',
+    description: 'Admin User Uploads - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/dashboard.css', '/css/admin-uploads.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+  <div class="dashboard-container">
+    <%- include('partials/sidebar', {
+      title: 'Admin Panel',
+      sidebarIcon: 'ri-settings-3-line',
+      items: [
+        { href: '/auth/admin', label: 'Dashboard', icon: 'ri-dashboard-line' },
+        { href: '/auth/admin#files', label: 'Manage Files', icon: 'ri-folder-3-line' },
+        { href: '/auth/admin-user-uploads', label: 'User Uploads', icon: 'ri-download-line', active: true },
+        { href: '/auth/admin#users', label: 'Manage Users', icon: 'ri-group-line' },
+        { href: '/auth/admin#audit', label: 'Audit Logs', icon: 'ri-file-list-3-line' },
+        { href: '/auth/admin#reports', label: 'Reports', icon: 'ri-line-chart-line' }
+      ],
+      role: typeof role !== 'undefined' ? role : 'admin'
+    }) %>
+
+    <main class="main-content">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title"><i class="ri-download-line"></i> User Uploaded Files</h1>
+          <p class="page-subtitle">Review all files uploaded by regular users in one place.</p>
+        </div>
+        <span class="count-pill">Total: <%= files ? files.length : 0 %></span>
+      </div>
+
+      <section class="card">
+        <h2><i class="ri-download-line"></i> Files Uploaded by Users</h2>
+
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Search by filename..." />
+          <select id="categoryFilter">
+            <option value="all">All Categories</option>
+            <option value="pdf">PDF</option>
+            <option value="docx">DOCX</option>
+            <option value="excel">Excel</option>
+            <option value="image">Image</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Category</th>
+                <th>Uploaded By</th>
+                <th>Branch</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="userUploadsTable">
+              <% if (files && files.length > 0) { %>
+                <% files.forEach(file => { %>
+                  <% const ext = (file.filename || '').toLowerCase().split('.').pop(); %>
+                  <% const category = ['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext) ? 'image' : (ext === 'pdf' ? 'pdf' : ((ext === 'docx' || ext === 'doc') ? 'docx' : (['xls','xlsx','csv'].includes(ext) ? 'excel' : 'other'))); %>
+                  <tr data-category="<%= category %>">
+                    <td class="filename-cell" title="<%= file.filename %>"><%= file.filename %></td>
+                    <td><span class="category-pill"><%= category.toUpperCase() %></span></td>
+                    <td><%= file.owner ? file.owner.fullname : 'Unknown' %> (<%= file.owner ? file.owner.email : 'N/A' %>)</td>
+                    <td><%= file.branch || (file.owner && file.owner.branch) || 'N/A' %></td>
+                    <td><%= file.uploadedAt ? new Date(file.uploadedAt).toLocaleDateString() : 'N/A' %></td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="5" class="muted">No user uploaded files yet.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/theme.js"></script>
+  <script>
+    function applyFilters() {
+      const query = (document.getElementById('searchInput').value || '').toLowerCase();
+      const category = document.getElementById('categoryFilter').value;
+      document.querySelectorAll('#userUploadsTable tr').forEach(row => {
+        if (row.cells.length < 2) return;
+        const name = (row.cells[0].textContent || '').toLowerCase();
+        const rowCategory = (row.getAttribute('data-category') || '').toLowerCase();
+        const matchesSearch = name.includes(query);
+        const matchesCategory = category === 'all' || rowCategory === category;
+        row.style.display = (matchesSearch && matchesCategory) ? '' : 'none';
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<%# partials/scripts.ejs
+   Shared footer scripts for all dashboard pages.
+   Expects locals:
+     email    (string) — current user email
+     fullname (string) — current user fullname
+     role     (string) — current user role
+%>
+<script src="/js/theme.js"></script>
+<div id="messenger-root" data-email="<%= email %>" data-fullname="<%= fullname || '' %>" data-role="<%= role || '' %>"></div>
+<script src="/js/messenger.js"></script>
+<script src="/js/sessionTimer.js"></script>

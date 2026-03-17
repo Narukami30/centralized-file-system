@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'Register | Centralized File System',
+    description: 'Register - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/register.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+  <!-- Particles -->
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <!-- Gradient Orbs -->
+  <div class="gradient-orb gradient-orb-1"></div>
+  <div class="gradient-orb gradient-orb-2"></div>
+
+  <!-- Back Link -->
+  <a href="/" class="back-link">
+    <i class="ri-arrow-left-line"></i>
+    Back to Home
+  </a>
+
+  <div class="container">
+    <div class="register-card">
+      <!-- Header -->
+      <div class="register-header">
+        <div class="logo-wrapper">
+          <i class="ri-user-add-fill"></i>
+        </div>
+        <h1>Create Account</h1>
+        <p>Join our secure file management system</p>
+      </div>
+
+      <!-- Error/Success messages -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="banner success">
+          <i class="ri-checkbox-circle-fill"></i>
+          <%= success %>
+        </div>
+      <% } %>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="banner error">
+          <i class="ri-error-warning-fill"></i>
+          <%= error %>
+        </div>
+      <% } %>
+
+      <!-- Register Form -->
+      <% const isInvite = typeof inviteToken !== 'undefined' && inviteToken; %>
+      <form method="POST" action="<%= isInvite ? '/auth/invite/accept' : '/auth/register' %>" id="registerForm">
+        <% if (isInvite) { %>
+          <input type="hidden" name="inviteToken" value="<%= inviteToken %>" />
+        <% } %>
+        <!-- Full Name -->
+        <div class="form-group">
+          <label for="fullname">Full Name</label>
+          <div class="input-wrapper">
+            <i class="ri-user-line input-icon"></i>
+            <input
+              type="text"
+              id="fullname"
+              name="fullname"
+              placeholder="Juan Dela Cruz"
+              required
+              autocomplete="name"
+            />
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div class="input-wrapper">
+            <i class="ri-mail-line input-icon"></i>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="your@email.com"
+              required
+              autocomplete="email"
+              <% if (isInvite) { %>value="<%= typeof inviteEmail !== 'undefined' ? inviteEmail : '' %>" readonly class="input-readonly"<% } %>
+            />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <i class="ri-lock-2-line input-icon"></i>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Create a password"
+              required
+              autocomplete="new-password"
+            />
+            <button type="button" class="password-toggle" onclick="togglePassword('password', 'toggleIcon1')" aria-label="Toggle password visibility">
+              <i class="ri-eye-off-line" id="toggleIcon1"></i>
+            </button>
+          </div>
+          <div class="password-strength" id="passwordStrength">
+            <div class="password-strength-bar" id="passwordStrengthBar"></div>
+          </div>
+          <div class="password-hint" id="passwordHint">At least 8 characters with uppercase, lowercase, number &amp; special char</div>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <div class="input-wrapper">
+            <i class="ri-lock-check-line input-icon"></i>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              placeholder="Confirm your password"
+              required
+              autocomplete="new-password"
+            />
+            <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword', 'toggleIcon2')" aria-label="Toggle password visibility">
+              <i class="ri-eye-off-line" id="toggleIcon2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Branch -->
+        <div class="form-group">
+          <label for="branch">Select Branch</label>
+          <div class="input-wrapper">
+            <i class="ri-building-2-line input-icon"></i>
+            <select id="branch" name="branch" required <% if (isInvite && typeof inviteBranch !== 'undefined' && inviteBranch) { %>disabled<% } %>>
+              <option value="">Choose your branch...</option>
+              <% (branches || []).forEach(function(branchName) { %>
+                <option value="<%= branchName %>" <% if (isInvite && typeof inviteBranch !== 'undefined' && inviteBranch === branchName) { %>selected<% } %>><%= branchName %></option>
+              <% }) %>
+            </select>
+            <% if (isInvite && typeof inviteBranch !== 'undefined' && inviteBranch) { %>
+              <input type="hidden" name="branch" value="<%= inviteBranch %>" />
+            <% } %>
+          </div>
+        </div>
+
+        <input type="hidden" name="role" value="user" />
+
+        <!-- Submit Button -->
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span class="btn-text">Create Account</span>
+          <span class="spinner"></span>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span class="divider-text">Already have an account?</span>
+      </div>
+
+      <!-- Login Link -->
+      <div class="login-link">
+        <p>Sign in to access your files</p>
+        <a href="/auth/login">
+          Sign In
+          <i class="ri-arrow-right-line"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("registerForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const passwordInput = document.getElementById("password");
+    const confirmInput = document.getElementById("confirmPassword");
+    const strengthIndicator = document.getElementById("passwordStrength");
+    const strengthBar = document.getElementById("passwordStrengthBar");
+    const passwordHint = document.getElementById("passwordHint");
+
+    // Toggle password visibility
+    function togglePassword(fieldId, iconId) {
+      const field = document.getElementById(fieldId);
+      const icon = document.getElementById(iconId);
+      const type = field.type === 'password' ? 'text' : 'password';
+      field.type = type;
+      icon.className = type === 'password' ? 'ri-eye-off-line' : 'ri-eye-line';
+    }
+
+    // Password strength checker
+    passwordInput.addEventListener("input", function() {
+      const val = this.value;
+      strengthIndicator.classList.toggle('visible', val.length > 0);
+
+      let strength = 'weak';
+      if (val.length >= 8 && /[A-Z]/.test(val) && /[a-z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)) {
+        strength = 'strong';
+      } else if (val.length >= 8 && (/[A-Z]/.test(val) || /[0-9]/.test(val))) {
+        strength = 'medium';
+      }
+
+      strengthBar.className = 'password-strength-bar ' + strength;
+      passwordHint.className = 'password-hint ' + strength;
+
+      if (val.length === 0) {
+        passwordHint.textContent = 'At least 8 characters with uppercase, lowercase, number & special char';
+        passwordHint.className = 'password-hint';
+      } else if (strength === 'weak') {
+        passwordHint.textContent = 'Weak — add uppercase, numbers, or symbols';
+      } else if (strength === 'medium') {
+        passwordHint.textContent = 'Fair — add more variety for stronger security';
+      } else {
+        passwordHint.textContent = 'Strong password';
+      }
+    });
+
+    // Form submission with validation
+    form.addEventListener("submit", function(e) {
+      const password = passwordInput.value;
+      const confirmPassword = confirmInput.value;
+
+      if (password !== confirmPassword) {
+        e.preventDefault();
+        alert("Passwords do not match!");
+        return;
+      }
+
+      if (password.length < 6) {
+        e.preventDefault();
+        alert("Password must be at least 6 characters long!");
+        return;
+      }
+
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+    });
+
+    // Reset button on page show (back/forward navigation)
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

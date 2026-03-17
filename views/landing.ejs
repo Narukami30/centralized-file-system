@@ -1,0 +1,280 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'DOJ-PPA Centralized File System',
+    description: 'DOJ-PPA Centralized File System - Landing Page',
+    cssFiles: ['/css/landing.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+    <!-- Floating Particles -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Gradient Orbs -->
+    <div class="gradient-orb gradient-orb-1"></div>
+    <div class="gradient-orb gradient-orb-2"></div>
+    <div class="gradient-orb gradient-orb-3"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="/" class="nav-logo">
+            <div class="nav-logo-icon"><i class="ri-folder-3-fill"></i></div>
+            <span class="nav-logo-text">CFS System</span>
+        </a>
+        <button class="nav-hamburger" id="navHamburger" type="button" aria-label="Toggle navigation menu">
+            <i class="ri-menu-line" id="hamburgerIcon"></i>
+        </button>
+        <div class="nav-links" id="navLinks">
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#workflow" class="nav-link">How It Works</a>
+            <a href="#about" class="nav-link">About</a>
+            <a href="/login" class="nav-link">Login</a>
+            <a href="/register" class="nav-btn">Get Started</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="ri-shield-check-fill"></i>
+                    Secure & Centralized
+                </div>
+                <h1 class="hero-title">
+                    Manage Files with <span class="highlight">Confidence</span>
+                </h1>
+                <p class="hero-subtitle">
+                    A powerful, secure file management platform designed for organizations that need role-based access control, centralized storage, and complete operational visibility.
+                </p>
+                <div class="hero-actions">
+                    <a href="/register" class="hero-btn hero-btn-primary">
+                        <i class="ri-rocket-line"></i>
+                        Get Started Free
+                    </a>
+                    <a href="#features" class="hero-btn hero-btn-secondary">
+                        <i class="ri-play-circle-line"></i>
+                        Learn More
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">256-bit</div>
+                        <div class="stat-label">Encryption</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">Monitoring</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="float-badge float-badge-1">
+                    <i class="ri-shield-check-fill"></i>
+                    <span>Encrypted</span>
+                </div>
+                <div class="float-badge float-badge-2">
+                    <i class="ri-ai-generate"></i>
+                    <span>AI Sorting</span>
+                </div>
+                <div class="hero-card">
+                    <div class="hero-card-header">
+                        <div class="hero-card-icon"><i class="ri-dashboard-3-line"></i></div>
+                        <div>
+                            <div class="hero-card-title">File Dashboard</div>
+                            <div class="hero-card-subtitle">Recent uploads</div>
+                        </div>
+                    </div>
+                    <div class="hero-file-item">
+                        <div class="hero-file-icon"><i class="ri-file-text-line"></i></div>
+                        <div class="hero-file-info">
+                            <h4>Annual_Report_2024.pdf</h4>
+                            <span>12.4 MB • Just now</span>
+                        </div>
+                        <span class="hero-file-status status-approved">Approved</span>
+                    </div>
+                    <div class="hero-file-item">
+                        <div class="hero-file-icon"><i class="ri-bar-chart-box-line"></i></div>
+                        <div class="hero-file-info">
+                            <h4>Q4_Financial_Summary.xlsx</h4>
+                            <span>3.2 MB • 5 min ago</span>
+                        </div>
+                        <span class="hero-file-status status-pending">Pending</span>
+                    </div>
+                    <div class="hero-file-item">
+                        <div class="hero-file-icon"><i class="ri-image-line"></i></div>
+                        <div class="hero-file-info">
+                            <h4>Project_Blueprint.png</h4>
+                            <span>8.7 MB • 12 min ago</span>
+                        </div>
+                        <span class="hero-file-status status-approved">Approved</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-header">
+            <div class="section-badge">
+                <i class="ri-sparkle-fill"></i>
+                Features
+            </div>
+            <h2 class="section-title">Why Choose CFS?</h2>
+            <p class="section-subtitle">Enterprise-grade features designed to keep your files secure, organized, and accessible.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="ri-shield-keyhole-line"></i></div>
+                <h3>Enterprise Security</h3>
+                <p>Advanced 256-bit encryption and secure protocols ensure your sensitive data remains protected at all times with comprehensive audit trails.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="ri-user-settings-line"></i></div>
+                <h3>Role-Based Access</h3>
+                <p>Granular permission controls for Super Admins, Admins, and Users. Define exactly who can view, edit, or manage each file and folder.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="ri-brain-line"></i></div>
+                <h3>AI-Powered Sorting</h3>
+                <p>Intelligent file categorization automatically organizes your uploads into documents, images, and reports based on content analysis.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="workflow" id="workflow">
+        <div class="section-header">
+            <div class="section-badge">
+                <i class="ri-route-line"></i>
+                Process
+            </div>
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Get started in minutes with our simple four-step process.</p>
+        </div>
+        <div class="workflow-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h4>Create Account</h4>
+                <p>Register with your organization email and select your assigned branch to get started.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h4>Upload Files</h4>
+                <p>Drag and drop or select files. Our AI automatically categorizes them for easy retrieval.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h4>Review & Approve</h4>
+                <p>Admins review uploads and approve or request changes with built-in notifications.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <h4>Manage Securely</h4>
+                <p>Access files anytime with complete audit logs and role-based permissions.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="section-header">
+            <div class="section-badge">
+                <i class="ri-information-line"></i>
+                About
+            </div>
+            <h2 class="section-title">System Information</h2>
+            <p class="section-subtitle">Learn more about how CFS helps organizations manage their files efficiently.</p>
+        </div>
+        <div class="about-grid">
+            <div class="about-card">
+                <h3><i class="ri-lightbulb-line"></i> What CFS Provides</h3>
+                <p>Centralized File System (CFS) is built for secure document storage, controlled sharing, and operational visibility across your organization.</p>
+                <p>The platform combines access control, file reporting, and real-time notifications so teams can manage uploads and activity from one consistent dashboard environment.</p>
+                <p>Designed for clarity and accountability, every key action is tracked and can be reviewed by authorized roles, ensuring complete transparency.</p>
+            </div>
+            <div class="role-card">
+                <h3><i class="ri-team-line"></i> Role Capabilities</h3>
+                <ul class="role-list">
+                    <li>
+                        <i class="ri-shield-star-line"></i>
+                        <span><strong>Super Admin:</strong> Full platform oversight including user management, system settings, and all file operations.</span>
+                    </li>
+                    <li>
+                        <i class="ri-admin-line"></i>
+                        <span><strong>Admin:</strong> Manages operational files, reviews user uploads, and monitors branch activity.</span>
+                    </li>
+                    <li>
+                        <i class="ri-user-line"></i>
+                        <span><strong>User:</strong> Uploads and accesses assigned files with controlled permissions based on role.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="cta-card">
+            <div class="cta-content">
+                <h2>Ready to Get Started?</h2>
+                <p>Join organizations that trust CFS for secure, centralized file management. Create your free account today.</p>
+                <a href="/register" class="cta-btn">
+                    <i class="ri-rocket-line"></i>
+                    Create Free Account
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-logo">
+            <div class="footer-logo-icon"><i class="ri-folder-3-fill"></i></div>
+            <span class="footer-logo-text">CFS System</span>
+        </div>
+        <p>&copy; 2026 Centralized File System. All rights reserved.</p>
+    </footer>
+
+    <script>
+    (function() {
+      var btn = document.getElementById('navHamburger');
+      var nav = document.getElementById('navLinks');
+      var icon = document.getElementById('hamburgerIcon');
+      if (btn && nav) {
+        btn.addEventListener('click', function() {
+          var open = nav.classList.toggle('open');
+          icon.className = open ? 'ri-close-line' : 'ri-menu-line';
+          btn.setAttribute('aria-expanded', open);
+        });
+        nav.querySelectorAll('a').forEach(function(a) {
+          a.addEventListener('click', function() {
+            nav.classList.remove('open');
+            icon.className = 'ri-menu-line';
+            btn.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+    })();
+    </script>
+</body>
+</html>

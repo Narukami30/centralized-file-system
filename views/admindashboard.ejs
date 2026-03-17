@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'Admin Dashboard | Centralized File System',
+    description: 'Admin Dashboard - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/dashboard.css', '/css/admin-dashboard.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body class="admin-dashboard-page">
+
+  <div class="dashboard-container">
+
+    <%- include('partials/sidebar', {
+      title: 'Admin Panel',
+      sidebarIcon: 'settings-3-line',
+      items: [
+        { href: '#overview', label: 'Dashboard', icon: 'bar-chart-box-line', active: true },
+        { href: '#files', label: 'Manage Files', icon: 'folder-3-line' },
+        { href: '/auth/admin-user-uploads', label: 'User Uploads', icon: 'download-line' },
+        { href: '#users', label: 'Manage Users', icon: 'group-line' },
+        { href: '#audit', label: 'Audit Logs', icon: 'file-list-3-line' },
+        { href: '#reports', label: 'Reports', icon: 'line-chart-line' }
+      ]
+    }) %>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <header class="dashboard-header">
+        <div class="admin-user-info">
+          <img id="adminAvatar" src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/56' %>" class="admin-avatar" alt="Admin Avatar" />
+          <div>
+            <h2 id="adminWelcomeName">Welcome, <%= fullname || 'Admin' %></h2>
+            <p>
+              <%= email %>
+              <span id="adminTimeoutBadge" class="session-timeout-badge"><i class="ri-timer-line"></i> Session timeout: <%= (systemSettings && systemSettings.autoLogoutMinutes) ? systemSettings.autoLogoutMinutes : 30 %> min</span>
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <!-- Overview -->
+      <section class="overview">
+        <h2><i class="ri-bar-chart-box-line section-icon"></i> System Overview</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <i class="ri-file-list-3-line stat-icon"></i>
+            <h3>Total Files</h3>
+            <p id="totalFiles">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-group-line stat-icon"></i>
+            <h3>Total Users</h3>
+            <p id="totalUsers">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-shield-user-line stat-icon"></i>
+            <h3>Active Admins</h3>
+            <p id="activeAdmins">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-upload-cloud-line stat-icon"></i>
+            <h3>Recent Uploads</h3>
+            <p id="recentUploads">0</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- File Management -->
+      <section class="file-management" id="files">
+        <h2><i class="ri-folder-3-line section-icon"></i> All Uploaded Files</h2>
+        <div class="filters">
+          <input type="text" id="fileSearch" placeholder="Search files..." />
+          <select id="fileCategoryFilter">
+            <option value="all">All Categories</option>
+            <option value="pdf">PDF</option>
+            <option value="docx">DOCX</option>
+            <option value="excel">Excel</option>
+            <option value="image">Images</option>
+          </select>
+          <button onclick="filterFiles()"><i class="ri-filter-line"></i> Filter</button>
+        </div>
+
+        <table>
+          <colgroup>
+            <col style="width:25%">
+            <col style="width:10%">
+            <col style="width:20%">
+            <col style="width:15%">
+            <col style="width:10%">
+            <col style="width:20%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortTable(0, 'fileTable')">File Name</th>
+              <th class="sortable" onclick="sortTable(1, 'fileTable')">Category</th>
+              <th class="sortable" onclick="sortTable(2, 'fileTable')">Uploaded By</th>
+              <th class="sortable" onclick="sortTable(3, 'fileTable')">Branch</th>
+              <th class="sortable" onclick="sortTable(4, 'fileTable')">Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fileTable">
+          </tbody>
+        </table>
+      </section>
+
+      <!-- User Management -->
+      <section class="user-management" id="users">
+        <h2><i class="ri-group-line section-icon"></i> Manage Users</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortTable(0, 'userTable')">User ID</th>
+              <th class="sortable" onclick="sortTable(1, 'userTable')">Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTable">
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Audit Logs -->
+      <section class="audit-logs" id="audit">
+        <h2><i class="ri-file-list-3-line section-icon"></i> Audit Logs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortTable(0, 'auditTable')">Action</th>
+              <th class="sortable" onclick="sortTable(1, 'auditTable')">File/User</th>
+              <th class="sortable" onclick="sortTable(2, 'auditTable')">Performed By</th>
+              <th class="sortable" onclick="sortTable(3, 'auditTable')">Date</th>
+            </tr>
+          </thead>
+          <tbody id="auditTable">
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Reports -->
+      <section class="reports" id="reports">
+        <h2><i class="ri-line-chart-line section-icon"></i> System Reports</h2>
+        <button onclick="generateReport()"><i class="ri-file-chart-line"></i> Generate Report</button>
+        <div id="reportOutput">
+          <p class="text-muted-sm report-placeholder">No reports generated yet.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="adminProfileModal" class="profile-modal" role="dialog" aria-modal="true" aria-label="Admin Profile" onclick="if(event.target===this) closeAdminProfileModal()">
+    <div class="profile-card">
+      <div class="profile-head">
+        <div>
+          <h3>Admin Profile</h3>
+          <p>Update your account details</p>
+        </div>
+        <button class="profile-close" type="button" onclick="closeAdminProfileModal()" aria-label="Close profile"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-user">
+          <img id="adminProfileAvatar" src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/56' %>" class="profile-avatar" alt="Admin Avatar" />
+          <div>
+            <h4 id="adminProfileName"><%= fullname || 'Admin' %></h4>
+            <p><%= email %></p>
+          </div>
+        </div>
+        <div class="profile-list">
+          <div class="profile-row"><span>Role</span><strong><%= role || 'admin' %></strong></div>
+          <div class="profile-row"><span>Status</span><strong>Active</strong></div>
+          <div class="profile-row"><span>Panel</span><strong>Admin</strong></div>
+        </div>
+        <form id="adminProfileForm" class="profile-form" enctype="multipart/form-data">
+          <div class="profile-field">
+            <label for="adminFullnameInput">Full Name</label>
+            <input id="adminFullnameInput" type="text" value="<%= fullname || '' %>" required />
+          </div>
+          <div class="profile-field">
+            <label for="adminPhotoInput">Profile Photo</label>
+            <input id="adminPhotoInput" type="file" accept="image/*" />
+          </div>
+          <button id="adminProfileSaveBtn" class="profile-save-btn" type="submit">Save Changes</button>
+        </form>
+        <div id="adminProfileStatus" class="profile-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="actionConfirmModal" class="confirm-modal" aria-hidden="true">
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div id="confirmTitle" class="confirm-title">Confirm Action</div>
+      <div id="confirmMessage" class="confirm-message">Are you sure?</div>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="confirm-btn cancel" type="button">Cancel</button>
+        <button id="confirmOkBtn" class="confirm-btn primary" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="actionToast" class="action-toast" aria-live="polite"></div>
+
+  <!-- JS (enhanced logic) -->
+  <script src="/js/requestHelpers.js"></script>
+  <script src="/js/toast.js"></script>
+  <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    let pendingAction = null;
+    let actionToastTimer = null;
+    let adminDisplayName = '<%= fullname || "Admin" %>';
+    let adminAvatarFile = '<%= (typeof avatar !== "undefined" && avatar) ? avatar : "" %>';
+    const initialSuccessMessage = <%- JSON.stringify(success || "") %>;
+    const initialErrorMessage = <%- JSON.stringify(error || "") %>;
+    const runtimeSystemSettings = <%- JSON.stringify(systemSettings || {}) %>;
+    const PROFILE_PHOTO_MAX_SIZE = 2 * 1024 * 1024;
+    const PROFILE_PHOTO_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    let adminAutoLogoutMinutes = Number(runtimeSystemSettings.autoLogoutMinutes || 30);
+    let adminInactivityWarnTimer = null;
+    let adminInactivityLogoutTimer = null;
+    let adminInactivityHandler = null;
+
+    function initAdminAutoLogout(minutesInput) {
+      const boundedMinutes = Math.min(120, Math.max(5, Number(minutesInput) || 30));
+      adminAutoLogoutMinutes = boundedMinutes;
+      const timeoutBadge = document.getElementById('adminTimeoutBadge');
+      if (timeoutBadge) timeoutBadge.textContent = `Session timeout: ${boundedMinutes} min`;
+
+      const timeoutMs = boundedMinutes * 60 * 1000;
+      const warningLeadMs = Math.min(60 * 1000, Math.floor(timeoutMs / 2));
+
+      const schedule = () => {
+        if (adminInactivityWarnTimer) clearTimeout(adminInactivityWarnTimer);
+        if (adminInactivityLogoutTimer) clearTimeout(adminInactivityLogoutTimer);
+
+        adminInactivityWarnTimer = setTimeout(() => {
+          const warnMinutes = warningLeadMs >= 60000
+            ? `${Math.max(1, Math.round(warningLeadMs / 60000))} minute(s)`
+            : `${Math.max(5, Math.round(warningLeadMs / 1000))} second(s)`;
+          showActionToast(`Session expires in ${warnMinutes} due to inactivity.`, 'error');
+        }, Math.max(1000, timeoutMs - warningLeadMs));
+
+        adminInactivityLogoutTimer = setTimeout(() => {
+          window.location.href = '/auth/logout';
+        }, timeoutMs);
+      };
+
+      if (adminInactivityHandler) {
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+          document.removeEventListener(evt, adminInactivityHandler);
+        });
+      }
+
+      adminInactivityHandler = () => schedule();
+      ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+        document.addEventListener(evt, adminInactivityHandler, { passive: true });
+      });
+
+      schedule();
+    }
+
+    function getAdminAvatarUrl(avatarFilename) {
+      return avatarFilename ? `/uploads/${avatarFilename}` : 'https://via.placeholder.com/56';
+    }
+
+    function openAdminProfileModal() {
+      const modal = document.getElementById('adminProfileModal');
+      const headerAvatar = document.getElementById('adminAvatar');
+      const profileAvatar = document.getElementById('adminProfileAvatar');
+      const nameEl = document.getElementById('adminProfileName');
+      const inputEl = document.getElementById('adminFullnameInput');
+      const statusEl = document.getElementById('adminProfileStatus');
+      if (headerAvatar) headerAvatar.src = getAdminAvatarUrl(adminAvatarFile);
+      if (profileAvatar) profileAvatar.src = getAdminAvatarUrl(adminAvatarFile);
+      if (nameEl) nameEl.textContent = adminDisplayName;
+      if (inputEl) inputEl.value = adminDisplayName;
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'profile-status';
+      }
+      if (modal) modal.classList.add('show');
+    }
+
+    function closeAdminProfileModal() {
+      const modal = document.getElementById('adminProfileModal');
+      if (modal) modal.classList.remove('show');
+    }
+
+    function openActionConfirm(title, message, confirmText, variant, onConfirm) {
+      const modal = document.getElementById('actionConfirmModal');
+      const titleEl = document.getElementById('confirmTitle');
+      const messageEl = document.getElementById('confirmMessage');
+      const okBtn = document.getElementById('confirmOkBtn');
+
+      titleEl.textContent = title || 'Confirm Action';
+      messageEl.textContent = message || 'Please confirm this action.';
+      okBtn.textContent = confirmText || 'Continue';
+      okBtn.classList.remove('primary', 'danger');
+      okBtn.classList.add(variant === 'danger' ? 'danger' : 'primary');
+
+      pendingAction = typeof onConfirm === 'function' ? onConfirm : null;
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeActionConfirm() {
+      const modal = document.getElementById('actionConfirmModal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      pendingAction = null;
+    }
+
+    function confirmActionProceed() {
+      const action = pendingAction;
+      closeActionConfirm();
+      if (action) action();
+    }
+
+    function showActionToast(message, type = 'info') {
+      const toast = document.getElementById('actionToast');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.className = `action-toast ${type}`;
+      requestAnimationFrame(() => toast.classList.add('show'));
+      if (actionToastTimer) clearTimeout(actionToastTimer);
+      actionToastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const adminAvatarEl = document.getElementById('adminAvatar');
+      const adminWelcomeNameEl = document.getElementById('adminWelcomeName');
+      if (adminAvatarEl) {
+        adminAvatarEl.src = getAdminAvatarUrl(adminAvatarFile);
+        adminAvatarEl.addEventListener('click', openAdminProfileModal);
+      }
+      if (adminWelcomeNameEl) adminWelcomeNameEl.textContent = `Welcome, ${adminDisplayName}`;
+      if (initialSuccessMessage) showActionToast(initialSuccessMessage, 'success');
+      else if (initialErrorMessage) showActionToast(initialErrorMessage, 'error');
+      initAdminAutoLogout(adminAutoLogoutMinutes);
+
+      const modal = document.getElementById('actionConfirmModal');
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+      const okBtn = document.getElementById('confirmOkBtn');
+      if (cancelBtn) cancelBtn.addEventListener('click', closeActionConfirm);
+      if (okBtn) okBtn.addEventListener('click', confirmActionProceed);
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) closeActionConfirm();
+        });
+      }
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeActionConfirm();
+          closeAdminProfileModal();
+        }
+      });
+
+      const profileForm = document.getElementById('adminProfileForm');
+      if (profileForm) {
+        profileForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const fullnameEl = document.getElementById('adminFullnameInput');
+          const photoEl = document.getElementById('adminPhotoInput');
+          const statusEl = document.getElementById('adminProfileStatus');
+          const saveBtn = document.getElementById('adminProfileSaveBtn');
+          const fullname = (fullnameEl?.value || '').trim();
+
+          if (!fullname) {
+            if (statusEl) { statusEl.textContent = 'Please enter your full name.'; statusEl.className = 'profile-status error'; }
+            return;
+          }
+          if (fullname.length > 80) {
+            if (statusEl) { statusEl.textContent = 'Full name must be 80 characters or fewer.'; statusEl.className = 'profile-status error'; }
+            return;
+          }
+
+          const selectedPhoto = photoEl?.files?.[0];
+          if (selectedPhoto) {
+            if (!PROFILE_PHOTO_ALLOWED_TYPES.includes(selectedPhoto.type)) {
+              if (statusEl) { statusEl.textContent = 'Only JPG, PNG, GIF, or WEBP images are allowed.'; statusEl.className = 'profile-status error'; }
+              return;
+            }
+            if (selectedPhoto.size > PROFILE_PHOTO_MAX_SIZE) {
+              if (statusEl) { statusEl.textContent = 'Profile photo must be 2MB or smaller.'; statusEl.className = 'profile-status error'; }
+              return;
+            }
+          }
+
+          const formData = new FormData();
+          formData.append('fullname', fullname);
+          if (selectedPhoto) formData.append('profilePhoto', selectedPhoto);
+
+          if (saveBtn) saveBtn.disabled = true;
+          if (statusEl) { statusEl.textContent = 'Saving profile...'; statusEl.className = 'profile-status'; }
+
+          try {
+            const data = await requestJson('/auth/user/profile', { method: 'POST', body: formData });
+            if (!data.success) throw new Error(data.message || 'Unable to update profile');
+
+            adminDisplayName = data.fullname || adminDisplayName;
+            adminAvatarFile = typeof data.avatar !== 'undefined' ? data.avatar : adminAvatarFile;
+
+            const headerAvatar = document.getElementById('adminAvatar');
+            const profileAvatar = document.getElementById('adminProfileAvatar');
+            const profileName = document.getElementById('adminProfileName');
+            const headerTitle = document.getElementById('adminWelcomeName');
+            if (headerAvatar) headerAvatar.src = getAdminAvatarUrl(adminAvatarFile);
+            if (profileAvatar) profileAvatar.src = getAdminAvatarUrl(adminAvatarFile);
+            if (profileName) profileName.textContent = adminDisplayName;
+            if (headerTitle) headerTitle.textContent = `Welcome, ${adminDisplayName}`;
+            if (photoEl) photoEl.value = '';
+            if (statusEl) { statusEl.textContent = 'Profile updated successfully.'; statusEl.className = 'profile-status success'; }
+          } catch (err) {
+            if (statusEl) { statusEl.textContent = err.message || 'Unable to update profile'; statusEl.className = 'profile-status error'; }
+          } finally {
+            if (saveBtn) saveBtn.disabled = false;
+          }
+        });
+      }
+    });
+
+    function getExtensionCategory(filename) {
+      const ext = (filename || '').toLowerCase().split('.').pop();
+      if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) return 'image';
+      if (ext === 'pdf') return 'pdf';
+      if (ext === 'docx' || ext === 'doc') return 'docx';
+      if (['xls', 'xlsx', 'csv'].includes(ext)) return 'excel';
+      return 'other';
+    }
+
+    function getCategoryLabel(category) {
+      if (category === 'pdf') return 'PDF';
+      if (category === 'docx') return 'DOCX';
+      if (category === 'excel') return 'EXCEL';
+      if (category === 'image') return 'IMAGE';
+      return 'OTHER';
+    }
+
+    // Initialize dashboard with real stats
+    document.addEventListener('DOMContentLoaded', function() {
+      // Update stats with passed data from backend
+      const stats = <%- JSON.stringify(stats || {}) %>;
+      document.getElementById('totalFiles').textContent = stats.totalFiles || '0';
+      document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
+      document.getElementById('activeAdmins').textContent = stats.activeAdmins || '0';
+      document.getElementById('recentUploads').textContent = stats.recentUploads || '0';
+      
+      // Populate files table from backend data
+      const filesData = <%- JSON.stringify(files || []) %>;
+      const fileTable = document.getElementById('fileTable');
+      fileTable.innerHTML = '';
+      if (filesData && filesData.length > 0) {
+        filesData.forEach((file, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          const extCategory = getExtensionCategory(file.filename);
+          row.setAttribute('data-category', extCategory);
+          const ownerName = file.owner ? file.owner.fullname : 'Unknown';
+          const ownerEmail = file.owner ? file.owner.email : 'N/A';
+          const branchName = file.branch || (file.owner && file.owner.branch) || 'N/A';
+          const uploadDate = new Date(file.uploadedAt).toLocaleDateString();
+          const displayName = file.originalName || file.filename;
+          row.innerHTML = `
+            <td title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</td>
+            <td>${getCategoryLabel(extCategory)}</td>
+            <td>${escapeHtml(ownerName)} (${escapeHtml(ownerEmail)})</td>
+            <td>${escapeHtml(branchName)}</td>
+            <td>${escapeHtml(uploadDate)}</td>
+            <td class="actions-cell">
+              <button onclick="viewAdminFile(${escapeHtml(JSON.stringify(file.filename))})">
+              <i class="ri-eye-line"></i> View</button>
+              <button onclick="downloadAdminFile(${escapeHtml(JSON.stringify(file.filename))})">
+              <i class="ri-download-line"></i> Download</button>
+              <button onclick="deleteAdminFile(${escapeHtml(JSON.stringify(file._id))})">
+              <i class="ri-delete-bin-line"></i> Delete</button>
+            </td>
+          `;
+          fileTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = '<td colspan="6">No files uploaded yet.</td>';
+        fileTable.appendChild(emptyRow);
+      }
+
+      const fileSearchInput = document.getElementById('fileSearch');
+      const fileCategoryFilter = document.getElementById('fileCategoryFilter');
+      if (fileSearchInput) {
+        fileSearchInput.addEventListener('input', filterFiles);
+      }
+      if (fileCategoryFilter) {
+        fileCategoryFilter.addEventListener('change', filterFiles);
+      }
+
+      // Populate users table from backend data
+      const usersData = <%- JSON.stringify(users || []) %>;
+      const userTable = document.getElementById('userTable');
+      userTable.innerHTML = '';
+      const manageableUsers = Array.isArray(usersData)
+        ? usersData.filter(user => {
+            if (currentAdminRole === 'super_admin') {
+              return user.role === 'user' || user.role === 'admin';
+            }
+            return user.role === 'user';
+          })
+        : [];
+      if (manageableUsers.length > 0) {
+        manageableUsers.forEach((user, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          const roleSelectId = `role-${user._id}`;
+          const roleLabel = user.role === 'admin' ? 'Admin' : 'User';
+          const roleCell = currentAdminRole === 'super_admin'
+            ? `<select id="${escapeHtml(roleSelectId)}" class="role-select">
+                 <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                 <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+               </select>`
+            : escapeHtml(roleLabel);
+          const roleActionButton = currentAdminRole === 'super_admin'
+            ? `<button onclick="updateAdminRole(${escapeHtml(JSON.stringify(user._id))}, document.getElementById(${escapeHtml(JSON.stringify(roleSelectId))}).value)"><i class="ri-refresh-line"></i> Update Role</button>`
+            : '';
+          row.innerHTML = `
+            <td>${escapeHtml(user._id)}</td>
+            <td>${escapeHtml(user.email)}</td>
+            <td>${roleCell}</td>
+            <td></td>
+            <td>
+              <button onclick="deactivateAdminUser(${escapeHtml(JSON.stringify(user._id))})"><i class="ri-forbid-line"></i> Deactivate</button>
+              ${roleActionButton}
+            </td>
+          `;
+          userTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = currentAdminRole === 'super_admin'
+          ? '<td colspan="5">No users or admins available to manage.</td>'
+          : '<td colspan="5">No regular users available to manage.</td>';
+        userTable.appendChild(emptyRow);
+      }
+
+      // Populate audit logs from backend data
+      const auditLogsData = <%- JSON.stringify(auditLogs || []) %>;
+      const auditTable = document.getElementById('auditTable');
+      auditTable.innerHTML = '';
+      if (auditLogsData && auditLogsData.length > 0) {
+        auditLogsData.forEach((log, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          const logDate = new Date(log.date).toLocaleDateString();
+          row.innerHTML = `
+            <td>${escapeHtml(log.action)}</td>
+            <td>${escapeHtml(log.filename)}</td>
+            <td>${escapeHtml(log.user)}</td>
+            <td>${escapeHtml(logDate)}</td>
+          `;
+          auditTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = '<td colspan="4">No audit logs recorded yet.</td>';
+        auditTable.appendChild(emptyRow);
+      }
+      
+      // Set animation delay for table rows
+      document.querySelectorAll('tbody tr').forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+      });
+      
+      // Navigation menu active state
+      document.querySelectorAll('.sidebar ul li a').forEach(link => {
+        link.addEventListener('click', function(e) {
+          document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+    });
+
+    const currentAdminRole = '<%= role %>';
+
+    // Table sorting functionality
+    let sortOrder = {};
+
+    function sortTable(columnIndex, tableId) {
+      const table = document.getElementById(tableId);
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const header = table.querySelectorAll('th')[columnIndex];
+      
+      // Determine sort direction
+      const isAsc = !sortOrder[tableId + '-' + columnIndex];
+      sortOrder[tableId + '-' + columnIndex] = isAsc;
+      
+      // Clear sort indicators
+      table.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+      });
+      
+      // Set current header indicator
+      header.classList.add(isAsc ? 'sort-asc' : 'sort-desc');
+      
+      // Sort rows
+      rows.sort((a, b) => {
+        const aText = a.cells[columnIndex].textContent.trim().toLowerCase();
+        const bText = b.cells[columnIndex].textContent.trim().toLowerCase();
+        
+        // Try numeric sort first
+        const aNum = parseFloat(aText);
+        const bNum = parseFloat(bText);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return isAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        // Fall back to string sort
+        return isAsc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+      });
+      
+      // Re-append sorted rows
+      rows.forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+        tbody.appendChild(row);
+      });
+    }
+
+    function viewAdminFile(fileName) {
+      if (!fileName) {
+        showActionToast('File not found', 'error');
+        return;
+      }
+      openActionConfirm(
+        'View File',
+        `Do you want to view this file?\n\n${fileName}`,
+        'View',
+        'primary',
+        function() {
+          window.open(`/uploads/${encodeURIComponent(fileName)}`, '_blank');
+        }
+      );
+    }
+
+    function downloadAdminFile(fileName) {
+      if (!fileName) {
+        showActionToast('File not found', 'error');
+        return;
+      }
+      openActionConfirm(
+        'Download File',
+        `Do you want to download this file?\n\n${fileName}`,
+        'Download',
+        'primary',
+        function() {
+          const link = document.createElement('a');
+          link.href = `/uploads/${encodeURIComponent(fileName)}`;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }
+      );
+    }
+
+    const { requestJson, postNoBody, postJson } = window.RequestHelpers;
+
+    function deleteAdminFile(fileId) {
+      openActionConfirm(
+        'Delete File',
+        'Do you want to delete this file?\n\nThis action cannot be undone.',
+        'Delete',
+        'danger',
+        async function() {
+          try {
+            const data = await postNoBody(`/admin/file/delete/${fileId}`);
+            if (data.success) {
+              showActionToast(data.message, 'success');
+              location.reload();
+            } else {
+              showActionToast(data.message, 'error');
+            }
+          } catch (err) {
+            showActionToast(err.message || 'Delete failed', 'error');
+          }
+        }
+      );
+    }
+
+    function updateAdminRole(userId, newRole) {
+      if (currentAdminRole !== 'super_admin') {
+        showActionToast('Only Super Admin can manage user roles.', 'error');
+        return;
+      }
+      const roleEmoji = { 'user': 'User', 'admin': 'Admin', 'super_admin': 'Super Admin' };
+      openActionConfirm(
+        'Update Role',
+        `Change role to ${newRole}?`,
+        'Update',
+        'primary',
+        async function() {
+          try {
+            const data = await postJson('/admin/user/role', { userId, role: newRole });
+            if (data.success) {
+              addAudit('Role Updated', `${userId} → ${newRole}`);
+              showActionToast(`Role updated to ${roleEmoji[newRole]} ${newRole}`, 'success');
+              location.reload();
+            } else {
+              showActionToast(data.message, 'error');
+            }
+          } catch (err) {
+            showActionToast(err.message || 'Role update failed', 'error');
+          }
+        }
+      );
+    }
+
+    function deactivateAdminUser(userId) {
+      openActionConfirm(
+        'Deactivate User',
+        `Deactivate this user? They won't be able to login.`,
+        'Deactivate',
+        'danger',
+        async function() {
+          try {
+            const data = await postNoBody(`/admin/user/deactivate/${userId}`);
+            if (data.success) {
+              addAudit('User Deactivated', userId);
+              showActionToast('User deactivated', 'success');
+              location.reload();
+            } else {
+              showActionToast(data.message, 'error');
+            }
+          } catch (err) {
+            showActionToast(err.message || 'Deactivation failed', 'error');
+          }
+        }
+      );
+    }
+
+    function generateReport() {
+      const reportDate = new Date().toLocaleString();
+      document.getElementById('reportOutput').innerHTML = `
+        <div class="report-card">
+          <h3>System Report Generated</h3>
+          <p><strong>Generated on:</strong> ${reportDate}</p>
+          <hr>
+          <ul>
+            <li><strong>Total Files:</strong> <%= stats ? stats.totalFiles : 'N/A' %></li>
+            <li><strong>Total Users:</strong> <%= stats ? stats.totalUsers : 'N/A' %></li>
+            <li><strong>Recent Uploads:</strong> <%= stats ? stats.recentUploads : 'N/A' %></li>
+            <li><strong>Actions Logged:</strong> <%= auditLogs ? auditLogs.length : 'N/A' %></li>
+            <li><strong>System Uptime:</strong> 99.9%</li>
+          </ul>
+        </div>
+      `;
+      addAudit('Report Generated', 'Admin Dashboard Summary');
+    }
+
+    function filterFiles() {
+      const query = document.getElementById('fileSearch').value.toLowerCase();
+      const category = document.getElementById('fileCategoryFilter').value;
+      document.querySelectorAll('#fileTable tr').forEach(row => {
+        if (row.cells.length < 2) return;
+        const name = row.cells[0].textContent.toLowerCase();
+        const cat = (row.getAttribute('data-category') || row.cells[1].textContent || '').toLowerCase();
+        row.style.display =
+          name.includes(query) && (category === 'all' || cat === category)
+          ? '' : 'none';
+      });
+    }
+
+    function addAudit(action, target) {
+      const row = document.createElement('tr');
+      const today = new Date().toISOString().split('T')[0];
+      const auditTableEl = document.getElementById('auditTable');
+      if (!auditTableEl) return;
+      const currentIndex = auditTableEl.rows.length;
+      row.style.setProperty('--row-index', currentIndex);
+      const tdAction = document.createElement('td');
+      tdAction.textContent = action;
+      const tdTarget = document.createElement('td');
+      tdTarget.textContent = target;
+      const tdUser = document.createElement('td');
+      tdUser.textContent = '<%= fullname || "Admin" %>';
+      const tdDate = document.createElement('td');
+      tdDate.textContent = today;
+      row.appendChild(tdAction);
+      row.appendChild(tdTarget);
+      row.appendChild(tdUser);
+      row.appendChild(tdDate);
+      auditTableEl.appendChild(row);
+    }
+  </script>
+  <%- include('partials/scripts', { email: email || '', fullname: fullname || '', role: role || '' }) %>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+<%# partials/head.ejs
+   Shared <head> content for every page.
+   Expects locals:
+     title       (string)  — page <title>
+     description (string)  — meta description
+     cssFiles    (array)   — CSS hrefs to include (optional)
+     headScripts (array)   — JS srcs to include in <head> (optional)
+%>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="<%= description %>" />
+<link rel="icon" href="/DOJ-PPA%20Official%20Logo.png" />
+<title><%= title %></title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" integrity="sha384-2+8OcleUOxnP/2cYXK9FBoMe12ojS0iPrrJy9Um4ICFk2AXl8iODUaIoUKI6TmGj" crossorigin="anonymous" />
+<% if (typeof cssFiles !== 'undefined' && cssFiles) { cssFiles.forEach(function(f) { %>
+<link rel="stylesheet" href="<%= f %>" />
+<% }); } %>
+<% if (typeof headScripts !== 'undefined' && headScripts) { headScripts.forEach(function(s) { %>
+<script src="<%= s %>"></script>
+<% }); } %>

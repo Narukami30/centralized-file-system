@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: '2FA Verify | Centralized File System',
+    description: '2FA Verification - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/2fa-verify.css', '/css/system-refresh.css']
+  }) %>
+</head>
+<body>
+  <div class="particles"><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div></div>
+  <div class="gradient-orb gradient-orb-1"></div>
+  <div class="gradient-orb gradient-orb-2"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="logo-wrapper"><i class="ri-shield-keyhole-fill"></i></div>
+        <h1>Verify Identity</h1>
+        <p>Enter the code from your authenticator app</p>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="banner error"><i class="ri-error-warning-fill"></i> <%= error %></div>
+      <% } %>
+
+      <div class="info-box">
+        <p><i class="ri-smartphone-line"></i> Open your authenticator app and enter the 6-digit code displayed for <strong>CFS</strong></p>
+      </div>
+
+      <form method="POST" action="/auth/2fa/verify">
+        <div class="form-group">
+          <label for="totpCode">Authentication Code</label>
+          <div class="input-wrapper">
+            <i class="ri-key-line input-icon"></i>
+            <input type="text" id="totpCode" name="totpCode" placeholder="------" required
+              maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" autofocus />
+          </div>
+        </div>
+        <button type="submit" class="submit-btn"><i class="ri-login-circle-fill"></i> Verify & Sign In</button>
+      </form>
+
+      <div class="timer">
+        <i class="ri-time-line"></i> Codes refresh every 30 seconds
+      </div>
+    </div>
+  </div>
+</body>
+</html>

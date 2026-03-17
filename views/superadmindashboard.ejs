@@ -1,0 +1,1232 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'Super Admin Dashboard | Centralized File System',
+    description: 'Super Admin Dashboard - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/dashboard.css', '/css/super-dashboard.css', '/css/system-refresh.css']
+  }) %>
+</head>
+
+<body>
+
+  <div class="dashboard-container">
+
+    <%- include('partials/sidebar', {
+      title: 'Super Admin',
+      sidebarIcon: 'shield-star-line',
+      items: [
+        { href: '#overview', label: 'Dashboard', icon: 'bar-chart-box-line', active: true },
+        { href: '#settings', label: 'System Settings', icon: 'settings-3-line' },
+        { href: '#branches', label: 'Branch Admins', icon: 'building-line' },
+        { href: '#admins', label: 'Manage Admins', icon: 'group-line' },
+        { href: '#users', label: 'Manage Users', icon: 'user-line' },
+        { href: '#files', label: 'Global Files', icon: 'folder-3-line' },
+        { href: '#audit', label: 'Audit Logs', icon: 'file-list-3-line' }
+      ]
+    }) %>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Header -->
+      <header class="dashboard-header">
+        <div class="user-info">
+          <img id="superAvatar" src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/60' %>" class="avatar" alt="Avatar">
+          <div>
+            <h1 id="superWelcomeName">Welcome, <%= fullname || "Super Admin" %></h1>
+            <p>
+              Centralized File System — Full Control
+              <span id="superTimeoutBadge" class="session-timeout-badge"><i class="ri-timer-line"></i> Session timeout: <%= (systemSettings && systemSettings.autoLogoutMinutes) ? systemSettings.autoLogoutMinutes : 30 %> min</span>
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <!-- Overview -->
+      <section class="overview" id="overview">
+        <h2><i class="ri-bar-chart-box-line"></i> System Overview</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <i class="ri-file-list-3-line stat-icon"></i>
+            <h3>Total Files</h3>
+            <p id="totalFiles">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-group-line stat-icon"></i>
+            <h3>Total Users</h3>
+            <p id="totalUsers">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-shield-user-line stat-icon"></i>
+            <h3>Total Admins</h3>
+            <p id="totalAdmins">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-settings-3-line stat-icon"></i>
+            <h3>System Actions</h3>
+            <p id="systemActions">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-admin-line stat-icon"></i>
+            <h3>Active Admin Accounts</h3>
+            <p id="activeAdminAccounts">0</p>
+          </div>
+          <div class="stat-card">
+            <i class="ri-user-heart-line stat-icon"></i>
+            <h3>Active User Accounts</h3>
+            <p id="activeUserAccounts">0</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- System Settings -->
+      <section class="system-settings" id="settings">
+        <h2><i class="ri-settings-3-line section-icon"></i> System Settings</h2>
+        <form id="settingsForm">
+          <label>
+            <input type="checkbox" id="notifCheck" <%= (systemSettings && systemSettings.notificationsEnabled !== false) ? 'checked' : '' %>>
+            Enable Notifications
+          </label>
+          <label>
+            <input type="checkbox" id="aiSortCheck" <%= (systemSettings && systemSettings.aiSortingEnabled !== false) ? 'checked' : '' %>>
+            Enable AI File Sorting
+          </label>
+          <label>
+            Auto-Logout (minutes):
+            <input type="number" id="logoutTime" value="<%= (systemSettings && systemSettings.autoLogoutMinutes) ? systemSettings.autoLogoutMinutes : 30 %>" min="5" max="120">
+          </label>
+          <button type="submit"><i class="ri-save-line"></i> Save Settings</button>
+        </form>
+      </section>
+
+      <section class="branch-assignments" id="branches">
+        <h2><i class="ri-building-line section-icon"></i> Branch Admin Assignments</h2>
+        <div class="branch-list">
+          <% (branchAdminAssignments || []).forEach(function(item) { %>
+            <div class="branch-item">
+              <div class="branch-name"><%= item.branch %></div>
+              <% if (item.adminEmail) { %>
+                <span class="branch-badge occupied">Occupied by: <%= item.adminEmail %></span>
+              <% } else { %>
+                <span class="branch-badge available">Available</span>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+
+      <!-- Manage Admins -->
+      <section class="manage-admins" id="admins">
+        <h2><i class="ri-group-line section-icon"></i> Manage Admin Accounts</h2>
+        <div class="table-toolbar">
+          <label for="adminBranchFilter">Filter by Branch:
+            <select id="adminBranchFilter">
+              <option value="">All Branches</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrapper super-table-wrap">
+        <table class="super-table">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="sortTable(0, 'adminTable')">Admin ID</th>
+                  <th class="sortable" onclick="sortTable(1, 'adminTable')">Email</th>
+                  <th class="sortable" onclick="sortTable(2, 'adminTable')">Branch</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminTable">
+              </tbody>
+              </table>
+              </div>
+      </section>
+
+      <!-- Manage Users -->
+      <section class="manage-users" id="users">
+        <h2><i class="ri-user-line section-icon"></i> Manage User Accounts</h2>
+        <div class="table-toolbar">
+          <label for="userBranchFilter">Filter by Branch:
+            <select id="userBranchFilter">
+              <option value="">All Branches</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrapper super-table-wrap">
+        <table class="super-table">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="sortTable(0, 'superUserTable')">User ID</th>
+                  <th class="sortable" onclick="sortTable(1, 'superUserTable')">Email</th>
+                  <th>Role</th>
+                  <th class="sortable" onclick="sortTable(3, 'superUserTable')">Branch</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="superUserTable">
+              </tbody>
+              </table>
+              </div>
+      </section>
+
+      <!-- Global Files -->
+      <section class="global-files" id="files">
+        <h2><i class="ri-folder-3-line section-icon"></i> Global File Oversight</h2>
+        <div class="table-wrapper super-table-wrap">
+        <table class="super-table">
+          <colgroup>
+            <col style="width:25%">
+            <col style="width:10%">
+            <col style="width:20%">
+            <col style="width:15%">
+            <col style="width:10%">
+            <col style="width:20%">
+          </colgroup>
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="sortTable(0, 'fileTable')">File Name</th>
+                  <th class="sortable" onclick="sortTable(1, 'fileTable')">Category</th>
+                  <th class="sortable" onclick="sortTable(2, 'fileTable')">Uploaded By</th>
+                  <th class="sortable" onclick="sortTable(3, 'fileTable')">Branch</th>
+                  <th class="sortable" onclick="sortTable(4, 'fileTable')">Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="fileTable">
+              </tbody>
+              </table>
+              </div>
+      </section>
+
+      <!-- Audit Logs -->
+      <section class="audit-logs" id="audit">
+        <h2><i class="ri-file-list-3-line section-icon"></i> Audit Logs</h2>
+        <ul id="auditList">
+        </ul>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="superProfileModal" class="profile-modal" role="dialog" aria-modal="true" aria-label="Super Admin Profile" onclick="if(event.target===this) closeSuperProfileModal()">
+    <div class="profile-card">
+      <div class="profile-head">
+        <div>
+          <h3>Super Admin Profile</h3>
+          <p>Update your account details</p>
+        </div>
+        <button class="profile-close" type="button" onclick="closeSuperProfileModal()" aria-label="Close profile"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-user">
+          <img id="superProfileAvatar" src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/60' %>" class="profile-avatar" alt="Super Admin Avatar" />
+          <div>
+            <h4 id="superProfileName"><%= fullname || 'Super Admin' %></h4>
+            <p><%= email %></p>
+          </div>
+        </div>
+        <div class="profile-list">
+          <div class="profile-row"><span>Role</span><strong><%= role || 'super_admin' %></strong></div>
+          <div class="profile-row"><span>Status</span><strong>Active</strong></div>
+          <div class="profile-row"><span>Access</span><strong>Full</strong></div>
+        </div>
+        <form id="superProfileForm" class="profile-form" enctype="multipart/form-data">
+          <div class="profile-field">
+            <label for="superFullnameInput">Full Name</label>
+            <input id="superFullnameInput" type="text" value="<%= fullname || '' %>" required />
+          </div>
+          <div class="profile-field">
+            <label for="superPhotoInput">Profile Photo</label>
+            <input id="superPhotoInput" type="file" accept="image/*" />
+          </div>
+          <button id="superProfileSaveBtn" class="profile-save-btn" type="submit">Save Changes</button>
+        </form>
+        <div id="superProfileStatus" class="profile-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="actionConfirmModal" class="action-modal" onclick="if(event.target===this) closeActionConfirm(false)">
+    <div class="action-modal-card" role="dialog" aria-modal="true" aria-labelledby="actionConfirmTitle">
+      <div class="action-modal-head">
+        <h3 id="actionConfirmTitle">Confirm Action</h3>
+      </div>
+      <p id="actionConfirmMessage" class="action-modal-message">Are you sure you want to continue?</p>
+      <div id="actionConfirmField" class="action-modal-field" style="display:none;">
+        <label id="actionConfirmInputLabel" for="actionConfirmInput">New Password</label>
+        <input id="actionConfirmInput" class="action-modal-input" type="password" autocomplete="new-password" />
+        <div id="actionConfirmInputError" class="action-modal-error"></div>
+      </div>
+      <div class="action-modal-actions">
+        <button id="actionConfirmCancel" type="button" class="confirm-btn cancel" onclick="closeActionConfirm(false)">Cancel</button>
+        <button id="actionConfirmOkBtn" type="button" class="confirm-btn danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="actionToast" class="action-toast" aria-live="polite"></div>
+
+  <!-- JS (enhanced logic) -->
+  <script src="/js/requestHelpers.js"></script>
+  <script src="/js/toast.js"></script>
+  <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    let superDisplayName = '<%= fullname || "Super Admin" %>';
+    let superAvatarFile = '<%= (typeof avatar !== "undefined" && avatar) ? avatar : "" %>';
+    const initialSuccessMessage = <%- JSON.stringify(success || "") %>;
+    const initialErrorMessage = <%- JSON.stringify(error || "") %>;
+    const runtimeSystemSettings = <%- JSON.stringify(systemSettings || {}) %>;
+    const PROFILE_PHOTO_MAX_SIZE = 2 * 1024 * 1024;
+    const PROFILE_PHOTO_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    let autoLogoutMinutes = Number(runtimeSystemSettings.autoLogoutMinutes || 30);
+    let inactivityWarnTimer = null;
+    let inactivityLogoutTimer = null;
+    let inactivityWarningShown = false;
+    let inactivityActivityHandler = null;
+
+    function initSuperAutoLogout(minutesInput) {
+      const boundedMinutes = Math.min(120, Math.max(5, Number(minutesInput) || 30));
+      autoLogoutMinutes = boundedMinutes;
+      const timeoutBadge = document.getElementById('superTimeoutBadge');
+      if (timeoutBadge) timeoutBadge.textContent = `Session timeout: ${boundedMinutes} min`;
+
+      const timeoutMs = boundedMinutes * 60 * 1000;
+      const warningLeadMs = Math.min(60 * 1000, Math.floor(timeoutMs / 2));
+
+      const schedule = () => {
+        if (inactivityWarnTimer) clearTimeout(inactivityWarnTimer);
+        if (inactivityLogoutTimer) clearTimeout(inactivityLogoutTimer);
+        inactivityWarningShown = false;
+
+        inactivityWarnTimer = setTimeout(() => {
+          if (!inactivityWarningShown) {
+            inactivityWarningShown = true;
+            const warnMinutes = warningLeadMs >= 60000
+              ? `${Math.max(1, Math.round(warningLeadMs / 60000))} minute(s)`
+              : `${Math.max(5, Math.round(warningLeadMs / 1000))} second(s)`;
+            showActionToast(`Session expires in ${warnMinutes} due to inactivity.`, 'error');
+          }
+        }, Math.max(1000, timeoutMs - warningLeadMs));
+
+        inactivityLogoutTimer = setTimeout(() => {
+          window.location.href = '/auth/logout';
+        }, timeoutMs);
+      };
+
+      if (inactivityActivityHandler) {
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+          document.removeEventListener(evt, inactivityActivityHandler);
+        });
+      }
+
+      const resetOnActivity = () => schedule();
+      inactivityActivityHandler = resetOnActivity;
+      ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+        document.addEventListener(evt, inactivityActivityHandler, { passive: true });
+      });
+
+      schedule();
+    }
+
+    function getSuperAvatarUrl(avatarFilename) {
+      return avatarFilename ? `/uploads/${avatarFilename}` : 'https://via.placeholder.com/60';
+    }
+
+    function openSuperProfileModal() {
+      const modal = document.getElementById('superProfileModal');
+      const headerAvatar = document.getElementById('superAvatar');
+      const profileAvatar = document.getElementById('superProfileAvatar');
+      const profileName = document.getElementById('superProfileName');
+      const fullnameInput = document.getElementById('superFullnameInput');
+      const statusEl = document.getElementById('superProfileStatus');
+      if (headerAvatar) headerAvatar.src = getSuperAvatarUrl(superAvatarFile);
+      if (profileAvatar) profileAvatar.src = getSuperAvatarUrl(superAvatarFile);
+      if (profileName) profileName.textContent = superDisplayName;
+      if (fullnameInput) fullnameInput.value = superDisplayName;
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'profile-status';
+      }
+      if (modal) modal.classList.add('show');
+    }
+
+    function closeSuperProfileModal() {
+      const modal = document.getElementById('superProfileModal');
+      if (modal) modal.classList.remove('show');
+    }
+
+    let actionConfirmResolver = null;
+    let actionToastTimer = null;
+
+    function showActionToast(message, type = 'info') {
+      const toast = document.getElementById('actionToast');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.className = `action-toast ${type}`;
+      requestAnimationFrame(() => toast.classList.add('show'));
+      if (actionToastTimer) clearTimeout(actionToastTimer);
+      actionToastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function closeActionConfirm(result) {
+      const modal = document.getElementById('actionConfirmModal');
+      const input = document.getElementById('actionConfirmInput');
+      const inputError = document.getElementById('actionConfirmInputError');
+      const inputField = document.getElementById('actionConfirmField');
+      if (modal) modal.classList.remove('show');
+      if (input) input.value = '';
+      if (inputError) inputError.textContent = '';
+      if (inputField) inputField.style.display = 'none';
+      if (actionConfirmResolver) {
+        const resolve = actionConfirmResolver;
+        actionConfirmResolver = null;
+        resolve(result);
+      }
+    }
+
+    function showActionConfirm({ title = 'Confirm Action', message = 'Are you sure?', confirmText = 'Confirm', cancelText = 'Cancel', danger = false, input = null }) {
+      const modal = document.getElementById('actionConfirmModal');
+      const titleEl = document.getElementById('actionConfirmTitle');
+      const msgEl = document.getElementById('actionConfirmMessage');
+      const okBtn = document.getElementById('actionConfirmOkBtn');
+      const cancelBtn = document.getElementById('actionConfirmCancel');
+      const inputField = document.getElementById('actionConfirmField');
+      const inputLabelEl = document.getElementById('actionConfirmInputLabel');
+      const inputEl = document.getElementById('actionConfirmInput');
+      const inputErrorEl = document.getElementById('actionConfirmInputError');
+
+      if (titleEl) titleEl.textContent = title;
+      if (msgEl) msgEl.textContent = message;
+      if (inputField) inputField.style.display = input ? 'grid' : 'none';
+      if (inputLabelEl && input?.label) inputLabelEl.textContent = input.label;
+      if (inputEl) {
+        inputEl.type = input?.type || 'password';
+        inputEl.placeholder = input?.placeholder || '';
+        inputEl.value = '';
+      }
+      if (inputErrorEl) inputErrorEl.textContent = '';
+
+      if (okBtn) {
+        okBtn.textContent = confirmText;
+        okBtn.className = `confirm-btn ${danger ? 'danger' : 'primary'}`;
+        okBtn.onclick = () => {
+          if (!input) {
+            closeActionConfirm(true);
+            return;
+          }
+
+          const inputValue = (inputEl?.value || '').trim();
+          const minLength = Number(input.minLength || 1);
+          if (inputValue.length < minLength) {
+            if (inputErrorEl) inputErrorEl.textContent = `${input.label || 'Value'} must be at least ${minLength} characters.`;
+            return;
+          }
+
+          closeActionConfirm({ confirmed: true, value: inputValue });
+        };
+      }
+      if (cancelBtn) cancelBtn.textContent = cancelText;
+      if (modal) modal.classList.add('show');
+
+      if (input && inputEl) {
+        setTimeout(() => inputEl.focus(), 0);
+      }
+
+      return new Promise(resolve => {
+        actionConfirmResolver = resolve;
+      });
+    }
+
+    // Initialize dashboard with real stats
+    document.addEventListener('DOMContentLoaded', function() {
+
+      const superAvatarEl = document.getElementById('superAvatar');
+      const superWelcomeNameEl = document.getElementById('superWelcomeName');
+      if (superAvatarEl) {
+        superAvatarEl.src = getSuperAvatarUrl(superAvatarFile);
+        superAvatarEl.addEventListener('click', openSuperProfileModal);
+      }
+      if (superWelcomeNameEl) superWelcomeNameEl.textContent = `Welcome, ${superDisplayName}`;
+      if (initialSuccessMessage) showActionToast(initialSuccessMessage, 'success');
+      else if (initialErrorMessage) showActionToast(initialErrorMessage, 'error');
+      initSuperAutoLogout(autoLogoutMinutes);
+
+      // Update stats with passed data from backend
+      const stats = <%- JSON.stringify(stats || {}) %>;
+      document.getElementById('totalFiles').textContent = stats.totalFiles || '0';
+      document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
+      document.getElementById('totalAdmins').textContent = stats.totalAdmins || '0';
+      document.getElementById('systemActions').textContent = stats.systemActions || '0';
+      document.getElementById('activeAdminAccounts').textContent = stats.activeAdminAccounts || '0';
+      document.getElementById('activeUserAccounts').textContent = stats.activeUserAccounts || '0';
+
+      const adminBranchFilterEl = document.getElementById('adminBranchFilter');
+      const userBranchFilterEl = document.getElementById('userBranchFilter');
+      const assignmentsData = <%- JSON.stringify(branchAdminAssignments || []) %>;
+      const branchOptions = Array.from(new Set(
+        (assignmentsData || []).map(item => item.branch).filter(Boolean)
+      )).sort((a, b) => a.localeCompare(b));
+
+      const populateBranchFilterOptions = (selectEl) => {
+        if (!selectEl) return;
+        branchOptions.forEach(branch => {
+          const option = document.createElement('option');
+          option.value = branch;
+          option.textContent = branch;
+          selectEl.appendChild(option);
+        });
+      };
+
+      const applyBranchFilter = (tableBodyId, selectedBranch, colSpan) => {
+        const tableBody = document.getElementById(tableBodyId);
+        if (!tableBody) return;
+
+        const existingFilterEmpty = tableBody.querySelector('.filter-empty-row');
+        if (existingFilterEmpty) existingFilterEmpty.remove();
+
+        const allRows = Array.from(tableBody.querySelectorAll('tr'));
+        const dataRows = allRows.filter((row) => !row.classList.contains('base-empty-row'));
+        if (dataRows.length === 0) return;
+
+        let visibleCount = 0;
+        dataRows.forEach((row) => {
+          const rowBranch = row.getAttribute('data-branch') || '';
+          const isVisible = !selectedBranch || rowBranch === selectedBranch;
+          row.style.display = isVisible ? '' : 'none';
+          if (isVisible) visibleCount += 1;
+        });
+
+        if (visibleCount === 0) {
+          const emptyRow = document.createElement('tr');
+          emptyRow.className = 'filter-empty-row';
+          emptyRow.innerHTML = `<td colspan="${colSpan}">No accounts found for the selected branch.</td>`;
+          tableBody.appendChild(emptyRow);
+        }
+      };
+
+      window.superApplyBranchFilter = applyBranchFilter;
+
+      populateBranchFilterOptions(adminBranchFilterEl);
+      populateBranchFilterOptions(userBranchFilterEl);
+      
+      // Populate admins table
+      const adminsData = <%- JSON.stringify(admins || []) %>;
+      const adminTable = document.getElementById('adminTable');
+      adminTable.innerHTML = '';
+      if (adminsData && adminsData.length > 0) {
+        adminsData.forEach((admin, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          const adminBranch = admin.branch || 'N/A';
+          row.setAttribute('data-account-id', admin._id);
+          row.setAttribute('data-email', admin.email || '');
+          row.setAttribute('data-branch', admin.branch || '');
+          const statusLabel = admin.active === false ? 'Inactive' : '<i class="ri-checkbox-circle-line text-success"></i> Active';
+          row.innerHTML = `
+            <td>${escapeHtml(admin._id)}</td>
+            <td>${escapeHtml(admin.email)}</td>
+            <td>${escapeHtml(adminBranch)}</td>
+            <td>${statusLabel}</td>
+            <td>
+              <button onclick="resetAdminPassword(${escapeHtml(JSON.stringify(admin._id))}, ${escapeHtml(JSON.stringify(admin.email))})"><i class="ri-key-line"></i> Reset Password</button>
+              <button onclick="deactivateSuperAdmin(${escapeHtml(JSON.stringify(admin._id))})"><i class="ri-forbid-line"></i> Deactivate</button>
+              <button onclick="deleteSuperAccount(${escapeHtml(JSON.stringify(admin._id))}, ${escapeHtml(JSON.stringify(admin.email))})"><i class="ri-delete-bin-line"></i> Delete Account</button>
+            </td>
+          `;
+          adminTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'base-empty-row';
+        emptyRow.innerHTML = '<td colspan="5">No admin accounts available to manage.</td>';
+        adminTable.appendChild(emptyRow);
+      }
+
+      // Populate users table
+      const usersData = <%- JSON.stringify(users || []) %>;
+      const superUserTable = document.getElementById('superUserTable');
+      superUserTable.innerHTML = '';
+      const manageableUsers = Array.isArray(usersData)
+        ? usersData.filter(user => user.role === 'user' || user.role === 'admin')
+        : [];
+      if (manageableUsers.length > 0) {
+        manageableUsers.forEach((user, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          const userBranch = user.branch || 'N/A';
+          row.setAttribute('data-account-id', user._id);
+          row.setAttribute('data-email', user.email || '');
+          row.setAttribute('data-branch', user.branch || '');
+          const currentRoleLabel = user.role === 'admin' ? 'Admin' : 'User';
+          const nextRole = user.role === 'admin' ? 'user' : 'admin';
+          const roleActionLabel = user.role === 'admin' ? 'Demote to User' : 'Promote to Admin';
+          const statusLabel = user.active === false ? 'Inactive' : '<i class="ri-checkbox-circle-line text-success"></i> Active';
+          row.innerHTML = `
+            <td>${escapeHtml(user._id)}</td>
+            <td>${escapeHtml(user.email)}</td>
+            <td>${escapeHtml(currentRoleLabel)}</td>
+            <td>${escapeHtml(userBranch)}</td>
+            <td>${statusLabel}</td>
+            <td>
+              <button onclick="toggleSuperUserRole(${escapeHtml(JSON.stringify(user._id))}, ${escapeHtml(JSON.stringify(nextRole))})">${roleActionLabel}</button>
+              <button onclick="deactivateSuperUser(${escapeHtml(JSON.stringify(user._id))})"><i class="ri-forbid-line"></i> Deactivate</button>
+              <button onclick="resetSuperUserPassword(${escapeHtml(JSON.stringify(user._id))}, ${escapeHtml(JSON.stringify(user.email))})"><i class="ri-key-line"></i> Reset Password</button>
+              <button onclick="deleteSuperAccount(${escapeHtml(JSON.stringify(user._id))}, ${escapeHtml(JSON.stringify(user.email))})"><i class="ri-delete-bin-line"></i> Delete Account</button>
+            </td>
+          `;
+          superUserTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'base-empty-row';
+        emptyRow.innerHTML = '<td colspan="6">No users or admins available to manage.</td>';
+        superUserTable.appendChild(emptyRow);
+      }
+
+      if (adminBranchFilterEl) {
+        adminBranchFilterEl.addEventListener('change', function() {
+          applyBranchFilter('adminTable', this.value, 5);
+        });
+      }
+
+      if (userBranchFilterEl) {
+        userBranchFilterEl.addEventListener('change', function() {
+          applyBranchFilter('superUserTable', this.value, 6);
+        });
+      }
+
+      // Populate global files table
+      const filesData = <%- JSON.stringify(files || []) %>;
+      const fileTable = document.getElementById('fileTable');
+      fileTable.innerHTML = '';
+      if (filesData && filesData.length > 0) {
+        filesData.forEach((file, index) => {
+          const row = document.createElement('tr');
+          row.style.setProperty('--row-index', index);
+          row.setAttribute('data-file-id', file._id);
+          const ownerName = file.owner ? file.owner.fullname : 'Unknown';
+          const ownerEmail = file.owner ? file.owner.email : 'N/A';
+          const branchName = file.branch || (file.owner && file.owner.branch) || 'N/A';
+          const uploadDate = new Date(file.uploadedAt).toLocaleDateString();
+          const displayName = file.originalName || file.filename;
+          row.innerHTML = `
+            <td title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</td>
+            <td>${escapeHtml(file.filetype)}</td>
+            <td>${escapeHtml(ownerName)} (${escapeHtml(ownerEmail)})</td>
+            <td>${escapeHtml(branchName)}</td>
+            <td>${escapeHtml(uploadDate)}</td>
+            <td>
+              <button onclick="viewGlobalFile(${escapeHtml(JSON.stringify(file.filename))})"><i class="ri-eye-line"></i> View</button>
+              <button onclick="downloadGlobalFile(${escapeHtml(JSON.stringify(file.filename))})"><i class="ri-download-line"></i> Download</button>
+              <button onclick="deleteGlobalFileSuperAdmin(${escapeHtml(JSON.stringify(file._id))})"><i class="ri-delete-bin-line"></i> Delete</button>
+            </td>
+          `;
+          fileTable.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'base-empty-row';
+        emptyRow.innerHTML = '<td colspan="6">No files in the system.</td>';
+        fileTable.appendChild(emptyRow);
+      }
+
+      // Populate audit logs
+      const auditLogsData = <%- JSON.stringify(auditLogs || []) %>;
+      const auditList = document.getElementById('auditList');
+      auditList.innerHTML = '';
+      if (auditLogsData && auditLogsData.length > 0) {
+        auditLogsData.forEach((log) => {
+          const li = document.createElement('li');
+          const logDate = new Date(log.date).toLocaleString();
+          li.textContent = `${log.action} - ${log.filename} by ${log.user} (${logDate})`;
+          auditList.appendChild(li);
+        });
+      } else {
+        const li = document.createElement('li');
+        li.textContent = 'No audit logs recorded yet.';
+        auditList.appendChild(li);
+      }
+      
+      // Set animation delay for table rows
+      document.querySelectorAll('tbody tr').forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+      });
+      
+      // Navigation menu active state
+      document.querySelectorAll('.sidebar ul li a').forEach(link => {
+        link.addEventListener('click', function(e) {
+          document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+
+      const superProfileForm = document.getElementById('superProfileForm');
+      if (superProfileForm) {
+        superProfileForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const fullnameEl = document.getElementById('superFullnameInput');
+          const photoEl = document.getElementById('superPhotoInput');
+          const statusEl = document.getElementById('superProfileStatus');
+          const saveBtn = document.getElementById('superProfileSaveBtn');
+          const fullname = (fullnameEl?.value || '').trim();
+
+          if (!fullname) {
+            if (statusEl) { statusEl.textContent = 'Please enter your full name.'; statusEl.className = 'profile-status error'; }
+            return;
+          }
+          if (fullname.length > 80) {
+            if (statusEl) { statusEl.textContent = 'Full name must be 80 characters or fewer.'; statusEl.className = 'profile-status error'; }
+            return;
+          }
+
+          const selectedPhoto = photoEl?.files?.[0];
+          if (selectedPhoto) {
+            if (!PROFILE_PHOTO_ALLOWED_TYPES.includes(selectedPhoto.type)) {
+              if (statusEl) { statusEl.textContent = 'Only JPG, PNG, GIF, or WEBP images are allowed.'; statusEl.className = 'profile-status error'; }
+              return;
+            }
+            if (selectedPhoto.size > PROFILE_PHOTO_MAX_SIZE) {
+              if (statusEl) { statusEl.textContent = 'Profile photo must be 2MB or smaller.'; statusEl.className = 'profile-status error'; }
+              return;
+            }
+          }
+
+          const formData = new FormData();
+          formData.append('fullname', fullname);
+          if (selectedPhoto) formData.append('profilePhoto', selectedPhoto);
+
+          if (saveBtn) saveBtn.disabled = true;
+          if (statusEl) { statusEl.textContent = 'Saving profile...'; statusEl.className = 'profile-status'; }
+
+          try {
+            const data = await requestJson('/auth/user/profile', { method: 'POST', body: formData });
+            if (!data.success) throw new Error(data.message || 'Unable to update profile');
+
+            superDisplayName = data.fullname || superDisplayName;
+            superAvatarFile = typeof data.avatar !== 'undefined' ? data.avatar : superAvatarFile;
+
+            const headerAvatar = document.getElementById('superAvatar');
+            const profileAvatar = document.getElementById('superProfileAvatar');
+            const profileName = document.getElementById('superProfileName');
+            const headerTitle = document.getElementById('superWelcomeName');
+            if (headerAvatar) headerAvatar.src = getSuperAvatarUrl(superAvatarFile);
+            if (profileAvatar) profileAvatar.src = getSuperAvatarUrl(superAvatarFile);
+            if (profileName) profileName.textContent = superDisplayName;
+            if (headerTitle) headerTitle.textContent = `Welcome, ${superDisplayName}`;
+            if (photoEl) photoEl.value = '';
+            if (statusEl) { statusEl.textContent = 'Profile updated successfully.'; statusEl.className = 'profile-status success'; }
+          } catch (err) {
+            if (statusEl) { statusEl.textContent = err.message || 'Unable to update profile'; statusEl.className = 'profile-status error'; }
+          } finally {
+            if (saveBtn) saveBtn.disabled = false;
+          }
+        });
+      }
+
+      document.addEventListener('keydown', function(evt) {
+        if (evt.key === 'Escape') {
+          closeSuperProfileModal();
+          closeActionConfirm(false);
+        }
+      });
+    });
+
+    // Table sorting
+    let sortOrder = {};
+
+    function sortTable(columnIndex, tableId) {
+      const tableOrBody = document.getElementById(tableId);
+      if (!tableOrBody) return;
+
+      const isBody = tableOrBody.tagName && tableOrBody.tagName.toLowerCase() === 'tbody';
+      const table = isBody ? tableOrBody.closest('table') : tableOrBody;
+      if (!table) return;
+
+      const tbody = isBody ? tableOrBody : table.querySelector('tbody');
+      if (!tbody) return;
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const header = table.querySelectorAll('th')[columnIndex];
+      if (!header) return;
+      
+      const isAsc = !sortOrder[tableId + '-' + columnIndex];
+      sortOrder[tableId + '-' + columnIndex] = isAsc;
+      
+      table.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+      });
+      
+      header.classList.add(isAsc ? 'sort-asc' : 'sort-desc');
+      
+      rows.sort((a, b) => {
+        const aText = a.cells[columnIndex].textContent.trim().toLowerCase();
+        const bText = b.cells[columnIndex].textContent.trim().toLowerCase();
+        
+        const aNum = parseFloat(aText);
+        const bNum = parseFloat(bText);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return isAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        return isAsc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+      });
+      
+      rows.forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+        tbody.appendChild(row);
+      });
+    }
+
+    // Settings form handler
+    document.getElementById('settingsForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const notif = document.getElementById('notifCheck').checked ? 'enabled' : 'disabled';
+      const aiSort = document.getElementById('aiSortCheck').checked ? 'enabled' : 'disabled';
+      const logoutInput = Number(document.getElementById('logoutTime').value || 30);
+      const logout = Math.min(120, Math.max(5, Number.isFinite(logoutInput) ? logoutInput : 30));
+      
+      requestJson('/superadmin/settings/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          autoLogout: logout, 
+          notifications: notif === 'enabled',
+          aiSorting: aiSort === 'enabled'
+        })
+      })
+      .then(data => {
+        if (!data || data.success === false) {
+          showActionToast((data && data.message ? data.message : 'Unable to update settings'), 'error');
+          return;
+        }
+        showActionToast(`Settings Updated • Notifications: ${notif} • AI Sorting: ${aiSort} • Auto-Logout: ${logout} min`, 'success');
+        addAudit(`System settings updated (Notifications: ${notif}, AI Sorting: ${aiSort}, Auto-Logout: ${logout} min)`);
+        initSuperAutoLogout(logout);
+        refreshSuperStats();
+      })
+      .catch(err => showActionToast(err.message || 'Unable to update settings', 'error'));
+    });
+
+    function viewGlobalFile(fileName) {
+      const safeName = String(fileName || '').replace(/\\/g, '/').split('/').pop();
+      if (!safeName) {
+        showActionToast('Invalid file name.', 'error');
+        return;
+      }
+
+      showActionConfirm({
+        title: 'View File',
+        message: `Do you want to view this file?\n\n${safeName}`,
+        confirmText: 'View',
+        cancelText: 'Cancel',
+        danger: false
+      }).then(result => {
+        if (!result) return;
+        const fileUrl = `/uploads/${encodeURIComponent(safeName)}`;
+        const openedWindow = window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        if (!openedWindow) {
+          showActionToast('Popup blocked. Allow popups to view files.', 'error');
+          return;
+        }
+        showActionToast(`Opening file: ${safeName}`, 'info');
+      });
+    }
+
+    function downloadGlobalFile(fileName) {
+      const safeName = String(fileName || '').replace(/\\/g, '/').split('/').pop();
+      if (!safeName) {
+        showActionToast('Invalid file name.', 'error');
+        return;
+      }
+
+      showActionConfirm({
+        title: 'Download File',
+        message: `Do you want to download this file?\n\n${safeName}`,
+        confirmText: 'Download',
+        cancelText: 'Cancel',
+        danger: false
+      }).then(result => {
+        if (!result) return;
+        const link = document.createElement('a');
+        link.href = `/uploads/${encodeURIComponent(safeName)}`;
+        link.setAttribute('download', safeName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showActionToast(`Downloading: ${safeName}`, 'info');
+      });
+    }
+
+    const { requestJson } = window.RequestHelpers;
+
+    function applySuperStats(stats) {
+      if (!stats) return;
+      document.getElementById('totalFiles').textContent = stats.totalFiles || '0';
+      document.getElementById('totalUsers').textContent = stats.totalUsers || '0';
+      document.getElementById('totalAdmins').textContent = stats.totalAdmins || '0';
+      document.getElementById('systemActions').textContent = stats.systemActions || '0';
+      document.getElementById('activeAdminAccounts').textContent = stats.activeAdminAccounts || '0';
+      document.getElementById('activeUserAccounts').textContent = stats.activeUserAccounts || '0';
+    }
+
+    async function refreshSuperStats() {
+      try {
+        const data = await requestJson('/superadmin/stats', { method: 'GET' });
+        if (data && data.success) {
+          applySuperStats(data.stats || {});
+        }
+      } catch (_err) {
+      }
+    }
+
+    function getTableDataRows(tableBodyId) {
+      const tableBody = document.getElementById(tableBodyId);
+      if (!tableBody) return [];
+      return Array.from(tableBody.querySelectorAll('tr')).filter((row) => {
+        return !row.classList.contains('base-empty-row') && !row.classList.contains('filter-empty-row');
+      });
+    }
+
+    function reindexTableRows(tableBodyId) {
+      getTableDataRows(tableBodyId).forEach((row, index) => {
+        row.style.setProperty('--row-index', index);
+      });
+    }
+
+    function ensureBaseEmptyRow(tableBodyId, colSpan, message) {
+      const tableBody = document.getElementById(tableBodyId);
+      if (!tableBody) return;
+      const existing = tableBody.querySelector('.base-empty-row');
+      if (existing) existing.remove();
+
+      if (getTableDataRows(tableBodyId).length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'base-empty-row';
+        emptyRow.innerHTML = `<td colspan="${colSpan}">${message}</td>`;
+        tableBody.appendChild(emptyRow);
+      }
+    }
+
+    function applyCurrentBranchFilters() {
+      const adminBranchFilterEl = document.getElementById('adminBranchFilter');
+      const userBranchFilterEl = document.getElementById('userBranchFilter');
+      if (typeof window.superApplyBranchFilter === 'function') {
+        window.superApplyBranchFilter('adminTable', adminBranchFilterEl ? adminBranchFilterEl.value : '', 5);
+        window.superApplyBranchFilter('superUserTable', userBranchFilterEl ? userBranchFilterEl.value : '', 6);
+      }
+    }
+
+    async function deleteGlobalFileSuperAdmin(fileId) {
+      const confirmed = await showActionConfirm({
+        title: 'Delete File',
+        message: 'Are you sure you want to delete this file? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (confirmed) {
+        requestJson(`/superadmin/file/delete/${fileId}`, { method: 'POST' })
+        .then(data => {
+          if (data.success) {
+            showActionToast(data.message, 'success');
+            addAudit('Super Admin deleted a global file');
+            const fileRow = document.querySelector(`#fileTable tr[data-file-id="${fileId}"]`);
+            if (fileRow) {
+              fileRow.remove();
+              reindexTableRows('fileTable');
+            }
+            refreshSuperStats();
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Delete failed', 'error'));
+      }
+    }
+
+    async function resetAdminPassword(adminId, accountEmail = 'this admin account') {
+      const result = await showActionConfirm({
+        title: 'Set New Password',
+        message: `Type a new password for ${accountEmail}.`,
+        confirmText: 'Set Password',
+        cancelText: 'Cancel',
+        danger: false,
+        input: {
+          label: 'New Password',
+          type: 'password',
+          placeholder: 'Minimum 6 characters',
+          minLength: 6
+        }
+      });
+      if (result && result.confirmed === true) {
+        requestJson(`/superadmin/account/reset-password/${adminId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword: result.value })
+        })
+        .then(data => {
+          if (data.success) {
+            showActionToast(data.message, 'success');
+            addAudit(`Password reset for ${accountEmail}`);
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Password reset failed', 'error'));
+      }
+    }
+
+    async function deactivateSuperAdmin(adminId) {
+      const confirmed = await showActionConfirm({
+        title: 'Deactivate Admin',
+        message: 'Deactivate this admin? They will no longer be able to log in.',
+        confirmText: 'Deactivate',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (confirmed) {
+        requestJson(`/superadmin/admin/deactivate/${adminId}`, { method: 'POST' })
+        .then(data => {
+          if (data.success) {
+            showActionToast('Admin deactivated successfully', 'success');
+            addAudit('Admin account deactivated');
+            const adminRow = document.querySelector(`#adminTable tr[data-account-id="${adminId}"]`);
+            if (adminRow) {
+              if (adminRow.cells[3]) adminRow.cells[3].textContent = 'Inactive';
+              const deactivateBtn = adminRow.querySelector('button[onclick*="deactivateSuperAdmin"]');
+              if (deactivateBtn) {
+                deactivateBtn.disabled = true;
+                deactivateBtn.textContent = 'Inactive';
+              }
+            }
+
+            const userRow = document.querySelector(`#superUserTable tr[data-account-id="${adminId}"]`);
+            if (userRow) {
+              if (userRow.cells[4]) userRow.cells[4].textContent = 'Inactive';
+              const deactivateUserBtn = userRow.querySelector('button[onclick*="deactivateSuperUser"]');
+              if (deactivateUserBtn) {
+                deactivateUserBtn.disabled = true;
+                deactivateUserBtn.textContent = 'Inactive';
+              }
+            }
+            refreshSuperStats();
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Deactivation failed', 'error'));
+      }
+    }
+
+    async function toggleSuperUserRole(userId, newRole) {
+      const actionLabel = newRole === 'admin' ? 'promote this account to Admin' : 'demote this account to User';
+      const confirmed = await showActionConfirm({
+        title: 'Change Role',
+        message: `Confirm to ${actionLabel}?`,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        danger: false
+      });
+      if (confirmed) {
+        requestJson('/admin/user/role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, role: newRole })
+        })
+        .then(data => {
+          if (data.success) {
+            showActionToast(`Role updated to ${newRole}`, 'success');
+            addAudit(`Role updated to ${newRole}`);
+            const userRow = document.querySelector(`#superUserTable tr[data-account-id="${userId}"]`);
+            if (userRow) {
+              const becameAdmin = newRole === 'admin';
+              const email = userRow.getAttribute('data-email') || (userRow.cells[1] ? userRow.cells[1].textContent.trim() : '');
+              const branch = userRow.getAttribute('data-branch') || '';
+              const branchLabel = userRow.cells[3] ? userRow.cells[3].textContent.trim() : 'N/A';
+              const statusLabel = userRow.cells[4] ? userRow.cells[4].textContent.trim() : 'Active';
+
+              if (userRow.cells[2]) userRow.cells[2].textContent = becameAdmin ? 'Admin' : 'User';
+              const roleBtn = userRow.querySelector('button[onclick*="toggleSuperUserRole"]');
+              if (roleBtn) {
+                const nextRole = becameAdmin ? 'user' : 'admin';
+                roleBtn.textContent = becameAdmin ? 'Demote to User' : 'Promote to Admin';
+                roleBtn.setAttribute('onclick', `toggleSuperUserRole(${escapeHtml(JSON.stringify(userId))}, ${escapeHtml(JSON.stringify(nextRole))})`);
+              }
+
+              const adminTable = document.getElementById('adminTable');
+              const existingAdminRow = document.querySelector(`#adminTable tr[data-account-id="${userId}"]`);
+              if (becameAdmin) {
+                if (!existingAdminRow && adminTable) {
+                  const baseEmpty = adminTable.querySelector('.base-empty-row');
+                  if (baseEmpty) baseEmpty.remove();
+
+                  const newAdminRow = document.createElement('tr');
+                  newAdminRow.setAttribute('data-account-id', userId);
+                  newAdminRow.setAttribute('data-email', email);
+                  newAdminRow.setAttribute('data-branch', branch);
+                  newAdminRow.innerHTML = `
+                    <td>${escapeHtml(userId)}</td>
+                    <td>${escapeHtml(email)}</td>
+                    <td>${escapeHtml(branchLabel || 'N/A')}</td>
+                    <td>${escapeHtml(statusLabel)}</td>
+                    <td>
+                      <button onclick="resetAdminPassword(${escapeHtml(JSON.stringify(userId))}, ${escapeHtml(JSON.stringify(email))})">Reset Password</button>
+                      <button onclick="deactivateSuperAdmin(${escapeHtml(JSON.stringify(userId))})">Deactivate</button>
+                      <button onclick="deleteSuperAccount(${escapeHtml(JSON.stringify(userId))}, ${escapeHtml(JSON.stringify(email))})">Delete Account</button>
+                    </td>
+                  `;
+                  adminTable.appendChild(newAdminRow);
+                }
+              } else if (existingAdminRow) {
+                existingAdminRow.remove();
+              }
+
+              reindexTableRows('adminTable');
+              ensureBaseEmptyRow('adminTable', 5, 'No admin accounts available to manage.');
+              applyCurrentBranchFilters();
+            }
+            refreshSuperStats();
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Role update failed', 'error'));
+      }
+    }
+
+    async function deactivateSuperUser(userId) {
+      const confirmed = await showActionConfirm({
+        title: 'Deactivate Account',
+        message: 'Deactivate this account? The user will no longer be able to log in.',
+        confirmText: 'Deactivate',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (confirmed) {
+        requestJson(`/admin/user/deactivate/${userId}`, { method: 'POST' })
+        .then(data => {
+          if (data.success) {
+            showActionToast('User deactivated successfully', 'success');
+            addAudit('User account deactivated');
+            const userRow = document.querySelector(`#superUserTable tr[data-account-id="${userId}"]`);
+            if (userRow) {
+              if (userRow.cells[4]) userRow.cells[4].textContent = 'Inactive';
+              const deactivateBtn = userRow.querySelector('button[onclick*="deactivateSuperUser"]');
+              if (deactivateBtn) {
+                deactivateBtn.disabled = true;
+                deactivateBtn.textContent = 'Inactive';
+              }
+            }
+
+            const adminRow = document.querySelector(`#adminTable tr[data-account-id="${userId}"]`);
+            if (adminRow) {
+              if (adminRow.cells[3]) adminRow.cells[3].textContent = 'Inactive';
+              const deactivateAdminBtn = adminRow.querySelector('button[onclick*="deactivateSuperAdmin"]');
+              if (deactivateAdminBtn) {
+                deactivateAdminBtn.disabled = true;
+                deactivateAdminBtn.textContent = 'Inactive';
+              }
+            }
+            refreshSuperStats();
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Deactivation failed', 'error'));
+      }
+    }
+
+    async function resetSuperUserPassword(userId, accountEmail = 'this account') {
+      const result = await showActionConfirm({
+        title: 'Set New Password',
+        message: `Type a new password for ${accountEmail}.`,
+        confirmText: 'Set Password',
+        cancelText: 'Cancel',
+        danger: false,
+        input: {
+          label: 'New Password',
+          type: 'password',
+          placeholder: 'Minimum 6 characters',
+          minLength: 6
+        }
+      });
+      if (result && result.confirmed === true) {
+        requestJson(`/superadmin/account/reset-password/${userId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword: result.value })
+        })
+        .then(data => {
+          if (data.success) {
+            showActionToast(data.message, 'success');
+            addAudit(`Password reset for ${accountEmail}`);
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Password reset failed', 'error'));
+      }
+    }
+
+    async function deleteSuperAccount(accountId, accountLabel) {
+      const confirmed = await showActionConfirm({
+        title: 'Delete Account',
+        message: `Permanently delete account ${accountLabel}? This will remove owned files, notifications, and reports.`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (confirmed) {
+        requestJson(`/superadmin/account/delete/${encodeURIComponent(accountId)}`, { method: 'POST' })
+        .then(data => {
+          if (data.success) {
+            showActionToast(data.message, 'success');
+            addAudit(`Account deleted: ${accountLabel}`);
+            const adminRow = document.querySelector(`#adminTable tr[data-account-id="${accountId}"]`);
+            if (adminRow) adminRow.remove();
+
+            const userRow = document.querySelector(`#superUserTable tr[data-account-id="${accountId}"]`);
+            if (userRow) userRow.remove();
+
+            reindexTableRows('adminTable');
+            reindexTableRows('superUserTable');
+            ensureBaseEmptyRow('adminTable', 5, 'No admin accounts available to manage.');
+            ensureBaseEmptyRow('superUserTable', 6, 'No users or admins available to manage.');
+            applyCurrentBranchFilters();
+            refreshSuperStats();
+          } else {
+            showActionToast(data.message, 'error');
+          }
+        })
+        .catch(err => showActionToast(err.message || 'Delete failed', 'error'));
+      }
+    }
+
+    const MAX_AUDIT_ITEMS = 20;
+
+    function addAudit(message) {
+      const li = document.createElement('li');
+      const now = new Date().toLocaleString();
+      li.textContent = `${message} (${now})`;
+      const auditList = document.getElementById('auditList');
+      if (!auditList) return;
+      auditList.insertBefore(li, auditList.firstChild);
+      while (auditList.children.length > MAX_AUDIT_ITEMS) {
+        auditList.removeChild(auditList.lastChild);
+      }
+    }
+  </script>
+  <%- include('partials/scripts', { email: email || '', fullname: fullname || '', role: role || '' }) %>
+
+</body>
+</html>
+

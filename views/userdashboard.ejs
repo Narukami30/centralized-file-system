@@ -1,0 +1,1594 @@
+﻿  Replaced '><i class="ri-search-line"></i></button>' -> '><i class="ri-search-line"></i></button>' (1 occurrences) ﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {
+    title: 'User Dashboard | Centralized File System',
+    description: 'User Dashboard - DOJ-PPA Centralized File System',
+    cssFiles: ['/css/dashboard.css', '/css/user-dashboard.css', '/css/system-refresh.css']
+  }) %>
+
+</head>
+<body class="user-dashboard-page">
+
+  <div class="dashboard-container">
+
+    <%- include('partials/sidebar', {
+      title: 'Dashboard',
+      sidebarIcon: 'folder-3-line',
+      role: role,
+      items: [
+        { href: '/auth/user', label: 'My Files', icon: 'folder-3-line', active: true },
+        { href: '/auth/notifications', label: 'Notifications', icon: 'notification-3-line' },
+        { href: '/auth/reports', label: 'Reports', icon: 'bar-chart-box-line' }
+      ]
+    }) %>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+    <header class="dashboard-header">
+      <div class="user-info">
+        <img src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/50' %>" class="avatar" id="avatar" alt="User Avatar" />
+        
+        <div>
+          <h1>Welcome, <%= fullname || "User" %></h1>
+          <p>
+            <%= email %>
+            <span id="userTimeoutBadge" class="session-timeout-badge"><i class="ri-timer-line"></i> Session timeout: <%= (systemSettings && systemSettings.autoLogoutMinutes) ? systemSettings.autoLogoutMinutes : 30 %> min</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" id="headerSearchInput" placeholder="Search files..." />
+        <button onclick="searchFiles()"><i class="ri-search-line"></i></button>
+      </div>
+    </header>
+
+    <section class="quick-stats">
+      <div class="stat-card">
+        <i class="ri-file-list-3-line stat-icon"></i>
+        <span class="stat-label">Total Files</span>
+        <span class="stat-value" id="statTotal">0</span>
+      </div>
+      <div class="stat-card">
+        <i class="ri-file-text-line stat-icon"></i>
+        <span class="stat-label">Documents</span>
+        <span class="stat-value" id="statDocs">0</span>
+      </div>
+      <div class="stat-card">
+        <i class="ri-image-line stat-icon"></i>
+        <span class="stat-label">Images</span>
+        <span class="stat-value" id="statImages">0</span>
+      </div>
+    </section>
+
+    
+<!-- Upload -->
+<section class="card upload-section">
+  <h2>Upload Files</h2>
+  
+  <!-- AI Sorting Status Indicator -->
+  <% if (systemSettings && systemSettings.aiSortingEnabled !== false) { %>
+  <div class="ai-sorting-badge" id="aiSortingBadge">
+    <span class="ai-icon"><i class="ri-robot-line"></i></span>
+    <span class="ai-text">AI Auto-Sort: <strong>ON</strong></span>
+    <span class="ai-hint">Files will be categorized automatically</span>
+  </div>
+  <% } else { %>
+  <div class="ai-sorting-badge ai-off" id="aiSortingBadge">
+    <span class="ai-icon"><i class="ri-folder-line"></i></span>
+    <span class="ai-text">Manual Sort</span>
+    <span class="ai-hint">Select category below</span>
+  </div>
+  <% } %>
+  
+  <form id="uploadForm" action="/auth/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+
+    <!-- Drag & Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <p><i class="ri-folder-open-line"></i> Drag & drop files here or <span class="browse">browse</span> (up to 10 files)</p>
+      <input type="file" id="fileInput" name="files" required hidden multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*" />
+    </div>
+    
+    <!-- AI Detection Results -->
+    <div class="ai-detection-results" id="aiDetectionResults" style="display: none;">
+      <div class="ai-detection-header">
+        <span class="ai-icon"><i class="ri-robot-line"></i></span>
+        <span>AI Detected Categories:</span>
+      </div>
+      <div class="ai-detection-list" id="aiDetectionList"></div>
+    </div>
+
+    <!-- Filetype Selector -->
+    <div class="filetype-selector-wrapper">
+      <label for="fileTypeSelect" id="fileTypeLabel">
+        <% if (systemSettings && systemSettings.aiSortingEnabled !== false) { %>
+          Override AI (optional):
+        <% } else { %>
+          Select Category:
+        <% } %>
+      </label>
+      <select id="fileTypeSelect" name="filetype" <%= (systemSettings && systemSettings.aiSortingEnabled !== false) ? '' : 'required' %> class="styled-select">
+        <% if (systemSettings && systemSettings.aiSortingEnabled !== false) { %>
+          <option value="">Auto-detect</option>
+        <% } %>
+        <option value="document">Document</option>
+        <option value="image">Image</option>
+        <option value="report">Report</option>
+      </select>
+    </div>
+
+    <!-- Upload Button -->
+    <button type="submit" class="btn-primary"><i class="ri-upload-2-line"></i> Upload</button>
+
+    <!-- Tags Input -->
+    <div class="filetype-selector-wrapper tags-wrapper">
+      <label for="uploadTags">Tags (optional, comma-separated):</label>
+      <input type="text" id="uploadTags" name="tags" placeholder="e.g. legal, 2024, memo" class="styled-select" style="width:100%;" />
+    </div>
+
+    <!-- File Names Display -->
+    <div id="fileNames" class="file-names"></div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </form>
+</section>
+
+<!-- Feedback Modal -->
+<div id="feedbackModal" class="modal" role="alert" aria-live="assertive">
+  <div class="modal-content" id="feedbackBox">
+    <span id="feedbackMessage"></span>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profileModal" class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" onclick="if(event.target===this) closeProfileModal()">
+  <div class="profile-card">
+    <div class="profile-head">
+      <div>
+        <h3 id="profileModalTitle">User Profile</h3>
+        <p>Manage your account details</p>
+      </div>
+      <button class="profile-close" type="button" onclick="closeProfileModal()" aria-label="Close profile"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="profile-body">
+      <div class="profile-user">
+        <img id="profileAvatar" src="<%= (typeof avatar !== 'undefined' && avatar) ? ('/uploads/' + avatar) : 'https://via.placeholder.com/50' %>" class="profile-avatar" alt="User Avatar" />
+        <div>
+          <h4 id="profileName"><%= fullname || "User" %></h4>
+          <p id="profileEmail"><%= email %></p>
+        </div>
+      </div>
+      <div class="profile-list">
+        <div class="profile-row"><span>Role</span><strong id="profileRole"><%= role || 'user' %></strong></div>
+        <div class="profile-row"><span>Total Files</span><strong id="profileFiles">0</strong></div>
+        <div class="profile-row"><span>Status</span><strong>Active</strong></div>
+      </div>
+      <form id="profileEditForm" class="profile-form" enctype="multipart/form-data">
+        <div class="profile-field">
+          <label for="profileFullnameInput">Full Name</label>
+          <input id="profileFullnameInput" name="fullname" type="text" value="<%= fullname || '' %>" required />
+        </div>
+        <div class="profile-field">
+          <label for="profilePhotoInput">Profile Photo</label>
+          <input id="profilePhotoInput" name="profilePhoto" type="file" accept="image/*" />
+        </div>
+        <button id="profileSaveBtn" class="profile-save-btn" type="submit">Save Changes</button>
+      </form>
+
+      <!-- Two-Factor Authentication -->
+      <div class="twofa-box">
+        <div class="twofa-header">
+          <i class="ri-shield-check-line"></i>
+          <strong>Two-Factor Authentication</strong>
+        </div>
+        <p class="twofa-desc">
+          Add an extra layer of security with a TOTP authenticator app.
+        </p>
+        <% if (typeof totpEnabled !== 'undefined' && totpEnabled) { %>
+          <div class="twofa-status">
+            <span class="twofa-dot"></span>
+            <span class="twofa-enabled">Enabled</span>
+          </div>
+          <button type="button" id="disable2faBtn" class="profile-save-btn btn-action btn-danger" style="font-size:0.82rem; padding:0.5rem;">
+            <i class="ri-shield-cross-line"></i> Disable 2FA
+          </button>
+        <% } else { %>
+          <a href="/auth/2fa/setup" class="profile-save-btn twofa-enable-link">
+            <i class="ri-shield-check-fill"></i> Enable 2FA
+          </a>
+        <% } %>
+        <div id="twoFaStatus" class="twofa-status-msg"></div>
+      </div>
+
+      <div id="profileStatus" class="profile-status"></div>
+    </div>
+  </div>
+</div>
+
+<div id="actionConfirmModal" class="confirm-modal" aria-hidden="true" onclick="if(event.target===this) closeActionConfirm()">
+  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <h3 id="confirmTitle" class="confirm-title">Confirm Action</h3>
+    <p id="confirmMessage" class="confirm-message">Are you sure?</p>
+    <div class="confirm-actions">
+      <button id="confirmCancelBtn" class="confirm-btn cancel" type="button">Cancel</button>
+      <button id="confirmOkBtn" class="confirm-btn primary" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+<script src="/js/requestHelpers.js"></script>
+<script src="/js/toast.js"></script>
+<script>
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+const fileInput = document.getElementById("fileInput");
+const dropZone = document.getElementById("dropZone");
+const fileNames = document.getElementById("fileNames");
+const fileTypeSelect = document.getElementById("fileTypeSelect");
+const userRole = '<%= role || "user" %>';
+let currentUserName = '<%= fullname || "User" %>';
+let currentUserAvatar = '<%= (typeof avatar !== "undefined" && avatar) ? avatar : "" %>';
+const initialSuccessMessage = <%- JSON.stringify(success || "") %>;
+const initialErrorMessage = <%- JSON.stringify(error || "") %>;
+const runtimeSystemSettings = <%- JSON.stringify(systemSettings || {}) %>;
+const { requestJson, postNoBody, redirectToLogin, shouldHandleTimeout } = window.RequestHelpers;
+const PROFILE_PHOTO_MAX_SIZE = 2 * 1024 * 1024;
+const PROFILE_PHOTO_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
+let userAutoLogoutMinutes = Number(runtimeSystemSettings.autoLogoutMinutes || 30);
+let userInactivityWarnTimer = null;
+let userInactivityLogoutTimer = null;
+let userInactivityHandler = null;
+const UPLOAD_ALLOWED_MIME_BY_TYPE = {
+  document: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv',
+    'text/plain'
+  ],
+  image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+  report: ['application/pdf', 'text/csv', 'text/plain']
+};
+
+// Client-side AI File Categorizer
+const AI_CATEGORY_RULES = {
+  document: {
+    mimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'],
+    extensions: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv']
+  },
+  image: {
+    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'],
+    extensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp']
+  },
+  report: {
+    mimeTypes: ['application/pdf', 'text/csv', 'text/plain'],
+    extensions: ['.pdf', '.csv', '.txt'],
+    namePatterns: [
+      /report/i, /summary/i, /analysis/i, /statistics/i, 
+      /monthly/i, /weekly/i, /daily/i, /annual/i, /quarterly/i, /semi[-_]?annual/i,
+      /audit/i, /log/i, /export/i,
+      /invoice/i, /receipt/i, /statement/i, /memo(randum)?/i, /minutes/i, /agenda/i,
+      /budget/i, /financial/i, /expenditure/i, /disbursement/i, /procurement/i, /inventory/i, /payroll/i,
+      /resolution/i, /directive/i, /circular/i, /memorandum/i, /advisory/i, /policy/i, /guideline/i,
+      /case[-_]?(file|report|summary)?/i, /probation(er)?/i, /parole(e)?/i,
+      /assessment/i, /evaluation/i, /compliance/i, /progress[-_]?report/i,
+      /investigation/i, /surveillance/i, /supervision/i, /intake/i, /release/i,
+      /commitment/i, /sentence/i, /hearing/i, /violation/i, /incident/i, /court[-_]?order/i, /legal/i,
+      /accomplishment/i
+    ]
+  },
+  letterhead: {
+    patterns: [/letterhead/i, /letter[-_]?head/i, /official[-_]?(letter|doc|document)/i, /correspondence/i, /legal[-_]?size/i, /a4[-_]?size/i, /template/i]
+  }
+};
+
+// Date pattern detection
+const DATE_PATTERNS = [
+  /\d{4}[-_]\d{2}[-_]\d{2}/,
+  /\d{2}[-_]\d{2}[-_]\d{4}/,
+  /(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?)[-_]?\d{4}/i,
+  /\d{4}[-_]?(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?)/i,
+  /[qQ][1-4][-_]?\d{4}|\d{4}[-_]?[qQ][1-4]/,
+  /[fF][yY][-_]?\d{4}/
+];
+
+function hasDateInFilename(filename) {
+  return DATE_PATTERNS.some(p => p.test(filename));
+}
+
+function isLetterhead(filename) {
+  return AI_CATEGORY_RULES.letterhead.patterns.some(p => p.test(filename));
+}
+
+function clientCategorizeFile(file) {
+  const ext = (file.name.lastIndexOf('.') !== -1) ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
+  const mime = file.type.toLowerCase();
+  const reportMimes = AI_CATEGORY_RULES.report.mimeTypes;
+  const hasDate = hasDateInFilename(file.name);
+  
+  // Check for letterhead patterns first
+  if (isLetterhead(file.name)) {
+    return { category: 'document', confidence: 88, reason: 'Letterhead/official document' };
+  }
+  
+  // Check for report patterns
+  const reportRules = AI_CATEGORY_RULES.report;
+  if (reportRules.namePatterns.some(p => p.test(file.name))) {
+    if (reportMimes.includes(mime)) {
+      const conf = hasDate ? 95 : 85;
+      return { category: 'report', confidence: conf, reason: hasDate ? 'Report pattern + date' : 'Report pattern match' };
+    }
+  }
+  
+  // Date pattern with report-compatible MIME
+  if (hasDate && reportMimes.includes(mime) && file.name.length > 15) {
+    return { category: 'report', confidence: 80, reason: 'Date pattern + descriptive name' };
+  }
+  
+  // Check MIME types
+  for (const [cat, rules] of Object.entries(AI_CATEGORY_RULES)) {
+    if (cat === 'letterhead') continue;
+    if (rules.mimeTypes && rules.mimeTypes.includes(mime)) {
+      return { category: cat, confidence: 90, reason: 'MIME type match' };
+    }
+  }
+  
+  // Check extensions
+  for (const [cat, rules] of Object.entries(AI_CATEGORY_RULES)) {
+    if (cat === 'letterhead') continue;
+    if (rules.extensions && rules.extensions.includes(ext)) {
+      return { category: cat, confidence: 80, reason: 'Extension match' };
+    }
+  }
+  
+  // Fallback by MIME prefix
+  if (mime.startsWith('image/')) return { category: 'image', confidence: 75, reason: 'Image MIME' };
+  if (mime.startsWith('text/')) return { category: 'document', confidence: 70, reason: 'Text MIME' };
+  
+  return { category: 'document', confidence: 50, reason: 'Default' };
+}
+
+const aiSortingEnabled = runtimeSystemSettings.aiSortingEnabled !== false;
+
+const UPLOAD_ACCEPT_BY_TYPE = {
+  document: '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt',
+  image: 'image/*',
+  report: '.pdf,.csv,.txt'
+};
+
+function initUserAutoLogout(minutesInput) {
+  const boundedMinutes = Math.min(120, Math.max(5, Number(minutesInput) || 30));
+  userAutoLogoutMinutes = boundedMinutes;
+  const timeoutBadge = document.getElementById('userTimeoutBadge');
+  if (timeoutBadge) timeoutBadge.innerHTML = '<i class="ri-timer-line"></i> Session timeout: ' + Number(boundedMinutes) + ' min';
+
+  const timeoutMs = boundedMinutes * 60 * 1000;
+  const warningLeadMs = Math.min(60 * 1000, Math.floor(timeoutMs / 2));
+
+  const schedule = () => {
+    if (userInactivityWarnTimer) clearTimeout(userInactivityWarnTimer);
+    if (userInactivityLogoutTimer) clearTimeout(userInactivityLogoutTimer);
+
+    userInactivityWarnTimer = setTimeout(() => {
+      const warnMinutes = warningLeadMs >= 60000
+        ? `${Math.max(1, Math.round(warningLeadMs / 60000))} minute(s)`
+        : `${Math.max(5, Math.round(warningLeadMs / 1000))} second(s)`;
+      showFeedbackToast(`Session expires in ${warnMinutes} due to inactivity.`, 'error');
+    }, Math.max(1000, timeoutMs - warningLeadMs));
+
+    userInactivityLogoutTimer = setTimeout(() => {
+      window.location.href = '/auth/logout';
+    }, timeoutMs);
+  };
+
+  if (userInactivityHandler) {
+    ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+      document.removeEventListener(evt, userInactivityHandler);
+    });
+  }
+
+  userInactivityHandler = () => schedule();
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((evt) => {
+    document.addEventListener(evt, userInactivityHandler, { passive: true });
+  });
+
+  schedule();
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes < 1024) return `${bytes || 0} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function updateFileInputAccept() {
+  if (!fileInput || !fileTypeSelect) return;
+  const selectedType = fileTypeSelect.value || 'document';
+  fileInput.setAttribute('accept', UPLOAD_ACCEPT_BY_TYPE[selectedType] || '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*');
+}
+
+function getAvatarUrl(avatarFilename) {
+  return avatarFilename ? `/uploads/${avatarFilename}` : 'https://via.placeholder.com/50';
+}
+
+function openProfileModal() {
+  const modal = document.getElementById('profileModal');
+  if (!modal) return;
+  const total = document.getElementById('statTotal')?.textContent || '0';
+  const roleText = userRole === 'super_admin' ? 'super_admin' : (userRole === 'admin' ? 'admin' : 'user');
+  const profileFiles = document.getElementById('profileFiles');
+  const profileRole = document.getElementById('profileRole');
+  const profileName = document.getElementById('profileName');
+  const profileNameInput = document.getElementById('profileFullnameInput');
+  const avatar = document.getElementById('avatar');
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileStatus = document.getElementById('profileStatus');
+  if (profileFiles) profileFiles.textContent = total;
+  if (profileRole) profileRole.textContent = roleText;
+  if (profileName) profileName.textContent = currentUserName;
+  if (profileNameInput) profileNameInput.value = currentUserName;
+  if (avatar) avatar.src = getAvatarUrl(currentUserAvatar);
+  if (profileAvatar) profileAvatar.src = getAvatarUrl(currentUserAvatar);
+  if (profileStatus) {
+    profileStatus.textContent = '';
+    profileStatus.className = 'profile-status';
+  }
+  modal.classList.add('show');
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('profileModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+}
+
+function getExtensionCategory(filename) {
+  const ext = (filename || '').toLowerCase().split('.').pop();
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) return 'image';
+  if (ext === 'pdf') return 'pdf';
+  if (ext === 'docx' || ext === 'doc') return 'docx';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'excel';
+  return 'other';
+}
+
+function getCategoryLabel(category) {
+  if (category === 'pdf') return 'PDF';
+  if (category === 'docx') return 'DOCX';
+  if (category === 'excel') return 'EXCEL';
+  if (category === 'image') return 'IMAGE';
+  return 'OTHER';
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+  // Update header with user info
+  const headerTitle = document.querySelector('.user-info h1');
+  if (headerTitle) headerTitle.textContent = `Welcome, ${currentUserName}`;
+  const avatar = document.getElementById('avatar');
+  if (avatar) avatar.src = getAvatarUrl(currentUserAvatar);
+  if (initialSuccessMessage) showFeedbackToast(initialSuccessMessage, 'success');
+  else if (initialErrorMessage) showFeedbackToast(initialErrorMessage, 'error');
+  initUserAutoLogout(userAutoLogoutMinutes);
+  
+  // Populate files from passed data
+  const filesData = <%- JSON.stringify(files || []) %>;
+  const totalFiles = filesData.length;
+  const totalDocs = filesData.filter(file => file.filetype === 'document' || file.filetype === 'pdf').length;
+  const totalImages = filesData.filter(file => file.filetype === 'image').length;
+
+  const statTotal = document.getElementById('statTotal');
+  const statDocs = document.getElementById('statDocs');
+  const statImages = document.getElementById('statImages');
+  if (statTotal) statTotal.textContent = totalFiles;
+  if (statDocs) statDocs.textContent = totalDocs;
+  if (statImages) statImages.textContent = totalImages;
+
+  // Server already renders filesContainer via EJS â€” do NOT overwrite innerHTML here
+  // (preserves checkboxes, version badges, shared badges, tags)
+
+  // Sidebar active state
+  document.querySelectorAll('.sidebar ul li a').forEach(link => {
+    link.addEventListener('click', function(e) {
+      document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  if (avatar) {
+    avatar.addEventListener('click', openProfileModal);
+  }
+
+  const profileEditForm = document.getElementById('profileEditForm');
+  if (profileEditForm) {
+    profileEditForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const profileSaveBtn = document.getElementById('profileSaveBtn');
+      const profileStatus = document.getElementById('profileStatus');
+      const profileNameInput = document.getElementById('profileFullnameInput');
+      const profilePhotoInput = document.getElementById('profilePhotoInput');
+
+      const fullname = (profileNameInput?.value || '').trim();
+      if (!fullname) {
+        if (profileStatus) {
+          profileStatus.textContent = 'Please enter your full name.';
+          profileStatus.className = 'profile-status error';
+        }
+        return;
+      }
+
+      if (fullname.length > 80) {
+        if (profileStatus) {
+          profileStatus.textContent = 'Full name must be 80 characters or fewer.';
+          profileStatus.className = 'profile-status error';
+        }
+        return;
+      }
+
+      const selectedPhoto = profilePhotoInput?.files?.[0];
+      if (selectedPhoto) {
+        if (!PROFILE_PHOTO_ALLOWED_TYPES.includes(selectedPhoto.type)) {
+          if (profileStatus) {
+            profileStatus.textContent = 'Only JPG, PNG, GIF, or WEBP images are allowed.';
+            profileStatus.className = 'profile-status error';
+          }
+          return;
+        }
+
+        if (selectedPhoto.size > PROFILE_PHOTO_MAX_SIZE) {
+          if (profileStatus) {
+            profileStatus.textContent = 'Profile photo must be 2MB or smaller.';
+            profileStatus.className = 'profile-status error';
+          }
+          return;
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('fullname', fullname);
+      if (selectedPhoto) {
+        formData.append('profilePhoto', selectedPhoto);
+      }
+
+      if (profileSaveBtn) profileSaveBtn.disabled = true;
+      if (profileStatus) {
+        profileStatus.textContent = 'Saving profile...';
+        profileStatus.className = 'profile-status';
+      }
+
+      try {
+        const data = await requestJson('/auth/user/profile', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!data.success) {
+          throw new Error(data.message || 'Unable to update profile');
+        }
+
+        currentUserName = data.fullname || currentUserName;
+        currentUserAvatar = data.avatar || currentUserAvatar;
+
+        const profileName = document.getElementById('profileName');
+        const headerTitle = document.querySelector('.user-info h1');
+        const headerAvatar = document.getElementById('avatar');
+        const profileAvatar = document.getElementById('profileAvatar');
+
+        if (profileName) profileName.textContent = currentUserName;
+        if (headerTitle) headerTitle.textContent = `Welcome, ${currentUserName}`;
+        if (headerAvatar) headerAvatar.src = getAvatarUrl(currentUserAvatar);
+        if (profileAvatar) profileAvatar.src = getAvatarUrl(currentUserAvatar);
+
+        if (profilePhotoInput) profilePhotoInput.value = '';
+        if (profileStatus) {
+          profileStatus.textContent = 'Profile updated successfully.';
+          profileStatus.className = 'profile-status success';
+        }
+      } catch (err) {
+        if (profileStatus) {
+          profileStatus.textContent = err.message || 'Unable to update profile';
+          profileStatus.className = 'profile-status error';
+        }
+      } finally {
+        if (profileSaveBtn) profileSaveBtn.disabled = false;
+      }
+    });
+  }
+
+  // --- 2FA Disable Handler ---
+  const disable2faBtn = document.getElementById('disable2faBtn');
+  if (disable2faBtn) {
+    disable2faBtn.addEventListener('click', async function() {
+      const password = prompt('Enter your password to disable 2FA:');
+      if (!password) return;
+      const statusEl = document.getElementById('twoFaStatus');
+      disable2faBtn.disabled = true;
+      if (statusEl) { statusEl.textContent = 'Disabling...'; statusEl.style.color = '#666'; }
+      try {
+        const res = await fetch('/auth/2fa/disable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.RequestHelpers.getCsrfToken() || '' },
+          body: JSON.stringify({ password }),
+          credentials: 'same-origin'
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (statusEl) { statusEl.textContent = '2FA disabled successfully. Reloading...'; statusEl.style.color = '#22c55e'; }
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          if (statusEl) { statusEl.textContent = data.message || 'Failed to disable 2FA'; statusEl.style.color = '#ef4444'; }
+          disable2faBtn.disabled = false;
+        }
+      } catch (err) {
+        if (statusEl) { statusEl.textContent = 'Error disabling 2FA'; statusEl.style.color = '#ef4444'; }
+        disable2faBtn.disabled = false;
+      }
+    });
+  }
+});
+
+// Click to browse
+dropZone.addEventListener("click", () => fileInput.click());
+
+fileTypeSelect?.addEventListener('change', () => {
+  updateFileInputAccept();
+  if (fileInput) fileInput.value = '';
+  displayFileNames([]);
+});
+
+updateFileInputAccept();
+
+// Drag & Drop behavior
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.classList.add("dragover");
+});
+dropZone.addEventListener("dragleave", () => {
+  dropZone.classList.remove("dragover");
+});
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  fileInput.files = e.dataTransfer.files;
+  displayFileNames(fileInput.files);
+});
+
+// Show file names
+fileInput.addEventListener("change", () => {
+  displayFileNames(fileInput.files);
+});
+
+function displayFileNames(files) {
+  fileNames.innerHTML = "";
+  const aiResults = document.getElementById("aiDetectionResults");
+  const aiList = document.getElementById("aiDetectionList");
+  
+  if (!files || files.length === 0) {
+    if (aiResults) aiResults.style.display = "none";
+    return;
+  }
+  
+  const detections = [];
+  
+  Array.from(files).forEach(file => {
+    const div = document.createElement("div");
+    var fIcon = document.createElement('i');
+    fIcon.className = 'ri-file-text-line';
+    fIcon.style.marginRight = '6px';
+    div.appendChild(fIcon);
+    div.appendChild(document.createTextNode(file.name + ' (' + formatBytes(file.size) + ')'));
+    fileNames.appendChild(div);
+    
+    // AI Detection
+    if (aiSortingEnabled) {
+      const detection = clientCategorizeFile(file);
+      detections.push({ name: file.name, ...detection });
+    }
+  });
+  
+  // Show AI detection results
+  if (aiSortingEnabled && detections.length > 0 && aiResults && aiList) {
+    aiList.innerHTML = "";
+    detections.forEach(d => {
+      const item = document.createElement("div");
+      item.className = "ai-detection-item";
+      const icon = d.category === 'image' ? 'ðŸ–¼ï¸' : d.category === 'report' ? 'ðŸ“Š' : '<i class="ri-file-text-line"></i>';
+      item.innerHTML = `
+        <span class="file-name" title="${d.name}">${d.name.length > 20 ? d.name.substring(0, 17) + '...' : d.name}</span>
+        <span class="detected-type">${icon} ${d.category}</span>
+        <span class="confidence" title="${d.reason || ''}">${d.confidence}%</span>
+      `;
+      aiList.appendChild(item);
+    });
+    aiResults.style.display = "block";
+    
+    // Auto-select category if all files are the same type
+    const uniqueCategories = [...new Set(detections.map(d => d.category))];
+    if (uniqueCategories.length === 1 && fileTypeSelect) {
+      const detected = uniqueCategories[0];
+      // If there's an auto-detect option, keep it selected but show detection
+      // Otherwise auto-select the detected category
+      const hasAutoOption = fileTypeSelect.querySelector('option[value=""]');
+      if (!hasAutoOption) {
+        fileTypeSelect.value = detected;
+      }
+    }
+  } else if (aiResults) {
+    aiResults.style.display = "none";
+  }
+}
+
+// Upload with progress + modal + real database (supports multiple files)
+document.getElementById("uploadForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  const uploadForm = this;
+  const uploadBtn = uploadForm.querySelector('button[type="submit"]');
+  const progressBar = document.getElementById("progressBar");
+  const progressFill = document.getElementById("progressFill");
+  const modal = document.getElementById("feedbackModal");
+  const feedbackBox = document.getElementById("feedbackBox");
+  const feedbackMessage = document.getElementById("feedbackMessage");
+  let selectedType = fileTypeSelect?.value || '';
+  const files = Array.from(fileInput.files);
+  
+  // If AI sorting is enabled and no category selected, auto-detect
+  if (aiSortingEnabled && !selectedType && files.length > 0) {
+    const detections = files.map(f => clientCategorizeFile(f));
+    const uniqueCategories = [...new Set(detections.map(d => d.category))];
+    selectedType = uniqueCategories.length === 1 ? uniqueCategories[0] : detections[0].category;
+    console.log('[AI Upload] Auto-detected category:', selectedType);
+  }
+  
+  // Default fallback
+  if (!selectedType) selectedType = 'document';
+
+  if (!files.length) {
+    feedbackMessage.textContent = "Please select at least one file";
+    feedbackBox.className = "modal-content error";
+    modal.classList.add("show");
+    setTimeout(() => { modal.classList.remove("show"); }, 3000);
+    return;
+  }
+
+  if (files.length > 10) {
+    feedbackMessage.textContent = "Maximum 10 files per upload";
+    feedbackBox.className = "modal-content error";
+    modal.classList.add("show");
+    setTimeout(() => { modal.classList.remove("show"); }, 3000);
+    return;
+  }
+
+  const allowedMimes = UPLOAD_ALLOWED_MIME_BY_TYPE[selectedType] || [];
+  for (const file of files) {
+    if (file.size > MAX_UPLOAD_SIZE) {
+      feedbackMessage.textContent = `"${file.name}" exceeds 15MB limit`;
+      feedbackBox.className = "modal-content error";
+      modal.classList.add("show");
+      setTimeout(() => { modal.classList.remove("show"); }, 3000);
+      return;
+    }
+    if (allowedMimes.length && !allowedMimes.includes(file.type)) {
+      feedbackMessage.textContent = `"${file.name}" does not match file category`;
+      feedbackBox.className = "modal-content error";
+      modal.classList.add("show");
+      setTimeout(() => { modal.classList.remove("show"); }, 3000);
+      return;
+    }
+  }
+
+  if (uploadBtn) uploadBtn.disabled = true;
+  progressBar.style.display = "block";
+  progressFill.style.width = "0%";
+
+  const formData = new FormData();
+  files.forEach(file => formData.append('files', file));
+  formData.append('filetype', selectedType);
+
+  const request = new XMLHttpRequest();
+  request.open('POST', '/auth/upload');
+  request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  request.setRequestHeader('Accept', 'application/json');
+  const csrfToken = window.RequestHelpers.getCsrfToken();
+  if (csrfToken) request.setRequestHeader('X-CSRF-Token', csrfToken);
+  request.upload.addEventListener('progress', function(evt) {
+    if (!evt.lengthComputable) return;
+    const progress = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+    progressFill.style.width = `${progress}%`;
+  });
+
+  request.onreadystatechange = function() {
+    if (request.readyState !== XMLHttpRequest.DONE) return;
+
+    let payload = null;
+    try {
+      payload = request.responseText ? JSON.parse(request.responseText) : null;
+    } catch (_) {
+      payload = null;
+    }
+
+    if (shouldHandleTimeout(request.status, payload)) {
+      redirectToLogin(payload && payload.redirect);
+      return;
+    }
+
+    if (request.status >= 200 && request.status < 300 && payload && payload.success) {
+      progressFill.style.width = "100%";
+      const uploadedCount = payload.uploadedCount || files.length;
+      const successMsg = payload.message || (uploadedCount > 1 ? uploadedCount + ' files uploaded successfully!' : 'File uploaded successfully!');
+      feedbackMessage.textContent = '';
+      const icon = document.createElement('i');
+      icon.className = 'ri-check-line';
+      feedbackMessage.appendChild(icon);
+      feedbackMessage.append(' ' + successMsg);
+      feedbackBox.className = "modal-content success";
+      modal.classList.add("show");
+
+      setTimeout(() => {
+        modal.classList.remove("show");
+        progressBar.style.display = "none";
+        progressFill.style.width = "0%";
+        fileNames.innerHTML = "";
+        if (fileInput) fileInput.value = '';
+        location.reload();
+      }, 1200);
+      return;
+    }
+
+    progressBar.style.display = "none";
+    progressFill.style.width = "0%";
+    feedbackMessage.textContent = (payload && payload.message) ? payload.message : 'Upload failed';
+    feedbackBox.className = "modal-content error";
+    modal.classList.add("show");
+    setTimeout(() => { modal.classList.remove("show"); }, 3000);
+  };
+
+  request.onerror = function() {
+    progressBar.style.display = "none";
+    progressFill.style.width = "0%";
+    feedbackMessage.textContent = "Network error during upload";
+    feedbackBox.className = "modal-content error";
+    modal.classList.add("show");
+    setTimeout(() => { modal.classList.remove("show"); }, 3000);
+  };
+
+  request.onloadend = function() {
+    if (uploadBtn) uploadBtn.disabled = false;
+  };
+
+  request.send(formData);
+});
+</script>
+
+
+
+      <!-- Storage Usage Bar -->
+      <div class="storage-bar-wrap" id="storageBarWrap" style="display:none;">
+        <div class="storage-bar"><div class="storage-bar-fill" id="storageBarFill" style="width:0%"></div></div>
+        <div class="storage-text" id="storageText"></div>
+      </div>
+
+      <!-- File Section Tabs -->
+      <div class="file-tabs">
+        <button class="file-tab active" onclick="switchFileTab('files', this)"><i class="ri-folder-line"></i> My Files</button>
+        <button class="file-tab" onclick="switchFileTab('shared', this)"><i class="ri-team-line"></i> Shared with Me</button>
+        <button class="file-tab" onclick="switchFileTab('recycle', this)"><i class="ri-delete-bin-line"></i> Recycle Bin</button>
+      </div>
+
+      <!-- Enhanced Search Bar -->
+      <div class="search-bar-wrap">
+        <input type="text" id="searchInput" placeholder="Search by name or tag..." />
+        <input type="date" id="searchFrom" title="From date" />
+        <input type="date" id="searchTo" title="To date" />
+        <button class="search-btn" onclick="serverSearch()"><i class="ri-search-line"></i> Search</button>
+      </div>
+
+      <!-- Filters -->
+      <section class="filters">
+        <h2>Filter Files</h2>
+        <button class="filter-btn active" onclick="filterFiles('all', this)">All</button>
+        <button class="filter-btn" onclick="filterFiles('pdf', this)">PDF</button>
+        <button class="filter-btn" onclick="filterFiles('docx', this)">DOCX</button>
+        <button class="filter-btn" onclick="filterFiles('excel', this)">Excel</button>
+        <button class="filter-btn" onclick="filterFiles('image', this)">Images</button>
+      </section>
+
+      <!-- Bulk Operations Toolbar -->
+      <div class="bulk-toolbar" id="bulkToolbar">
+        <span id="bulkCount">0 selected</span>
+        <button class="bulk-btn-download" onclick="bulkDownload()"><i class="ri-download-line"></i> Download ZIP</button>
+        <button class="bulk-btn-delete" onclick="bulkDelete()"><i class="ri-delete-bin-line"></i> Delete Selected</button>
+        <button class="btn-action" onclick="clearBulkSelection()"><i class="ri-close-line"></i> Clear</button>
+      </div>
+
+      <!-- My Files -->
+      <section class="file-list" id="myFilesSection">
+        <h2>Uploaded Files</h2>
+        <div id="filesContainer" class="files-grid">
+          <% if (typeof files !== "undefined" && files.length > 0) { %>
+            <% files.forEach(f => { %>
+              <% const ext = (f.filename || '').toLowerCase().split('.').pop(); %>
+              <% const extCategory = ['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext) ? 'image' : (ext === 'pdf' ? 'pdf' : ((ext === 'docx' || ext === 'doc') ? 'docx' : (['xls','xlsx','csv'].includes(ext) ? 'excel' : 'other'))); %>
+              <div class="file-card" data-category="<%= extCategory %>" data-file-id="<%= f._id %>"
+                   data-filename="<%= f.filename %>" data-filetype="<%= f.filetype %>"
+                   onclick="if(!event.target.classList.contains('file-card-check')) openPreview(this.dataset.filename, this.dataset.filetype, this.dataset.fileId)">
+                <input type="checkbox" class="file-card-check" data-id="<%= f._id %>" onclick="event.stopPropagation(); updateBulkToolbar()" />
+                <% if (f.version > 1) { %><span class="version-badge">v<%= f.version %></span><% } %>
+                <% if (f.sharedWith && f.sharedWith.length) { %><span class="shared-badge" title="Shared"><i class="ri-link"></i></span><% } %>
+                <% if (extCategory === "image") { %>
+                  <img src="/uploads/<%= f.filename %>" alt="<%= f.filename %>" class="file-thumb" />
+                <% } else { %>
+                  <span class="file-icon-lg"><i class="ri-file-text-line"></i></span>
+                <% } %>
+                <p title="<%= f.originalName || f.filename %>"><%= f.originalName || f.filename %></p>
+                <span class="file-category"><%= extCategory === 'pdf' ? 'PDF' : (extCategory === 'docx' ? 'DOCX' : (extCategory === 'excel' ? 'EXCEL' : (extCategory === 'image' ? 'IMAGE' : 'OTHER'))) %></span>
+                <% if (f.tags && f.tags.length) { %>
+                  <div class="file-tags"><% f.tags.forEach(t => { %><span class="file-tag"><%= t %></span><% }) %></div>
+                <% } %>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="empty-state">
+              <i class="ri-folder-open-line"></i>
+              <p>No files uploaded yet</p>
+              <span class="text-muted-sm">Drag & drop files above or click Upload to get started</span>
+            </div>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="file-list" id="sharedFilesSection" style="display:none;">
+        <h2><i class="ri-team-line"></i> Shared with Me</h2>
+        <div class="files-grid" id="sharedFilesContainer">
+          <% if (typeof sharedFiles !== "undefined" && sharedFiles.length > 0) { %>
+            <% sharedFiles.forEach(f => { %>
+              <% const ext2 = (f.filename || '').toLowerCase().split('.').pop(); %>
+              <% const extCat2 = ['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext2) ? 'image' : (ext2 === 'pdf' ? 'pdf' : ((ext2 === 'docx' || ext2 === 'doc') ? 'docx' : (['xls','xlsx','csv'].includes(ext2) ? 'excel' : 'other'))); %>
+              <div class="file-card" data-file-id="<%= f._id %>"
+                   data-filename="<%= f.filename %>" data-filetype="<%= f.filetype %>"
+                   onclick="openPreview(this.dataset.filename, this.dataset.filetype, this.dataset.fileId)">
+                <% if (extCat2 === "image") { %>
+                  <img src="/uploads/<%= f.filename %>" alt="<%= f.filename %>" class="file-thumb" />
+                <% } else { %>
+                  <span class="file-icon-lg"><i class="ri-file-text-line"></i></span>
+                <% } %>
+                <p><%= f.originalName || f.filename %></p>
+                <span class="file-category"><%= extCat2.toUpperCase() %></span>
+                <% if (f.owner) { %><div class="text-hint">from <%= f.owner.fullname %></div><% } %>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="empty-state">
+              <i class="ri-share-line"></i>
+              <p>No shared files</p>
+              <span class="text-muted-sm">Files shared with you will appear here</span>
+            </div>
+          <% } %>
+        </div>
+      </section>
+
+      <!-- Recycle Bin Section -->
+      <section class="file-list" id="recycleBinSection" style="display:none;">
+        <h2><i class="ri-delete-bin-line"></i> Recycle Bin</h2>
+        <div class="files-grid" id="recycleBinContainer">
+          <p>Loading...</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="previewModal" class="modal" role="dialog" aria-modal="true" onclick="if(event.target===this) closePreview()">
+    <div class="modal-content modal-preview-content">
+      <span class="close" onclick="closePreview()">&times;</span>
+      <h2 id="previewTitle"></h2>
+      <div id="previewArea" class="preview-area"></div>
+      <div id="previewActions" class="preview-actions">
+        <button id="viewBtn"><i class="ri-eye-line"></i> View</button>
+        <button id="downloadBtn"><i class="ri-download-line"></i> Download</button>
+      </div>
+
+      <!-- Tags Section -->
+      <div class="tags-section" id="previewTagsSection" style="display:none;">
+        <h4 class="preview-tags-heading"><i class="ri-price-tag-3-line"></i> Tags</h4>
+        <div id="previewTagsList" class="file-tags" style="margin-bottom:0.5rem;"></div>
+        <div style="display:flex;">
+          <input type="text" id="previewTagsInput" placeholder="Add tags (comma-separated)" />
+          <button onclick="saveFileTags()">Save</button>
+        </div>
+      </div>
+
+      <!-- Share Section -->
+      <div class="share-section" id="previewShareSection" style="display:none;">
+        <h4><i class="ri-link"></i> Share</h4>
+        <input type="text" id="shareEmailsInput" placeholder="Enter email(s), comma-separated" />
+        <button onclick="shareFileWithUsers()">Share with Users</button>
+        <hr class="preview-divider" />
+        <h4><i class="ri-attachment-line"></i> Create Share Link</h4>
+        <div class="preview-share-row">
+          <select id="shareLinkExpiry">
+            <option value="1">1 hour</option>
+            <option value="24" selected>24 hours</option>
+            <option value="168">7 days</option>
+            <option value="720">30 days</option>
+          </select>
+          <input type="number" id="shareLinkMaxDl" placeholder="Max downloads (0=unlimited)" min="0" value="0" style="width:180px;" />
+          <button onclick="createShareLink()">Generate Link</button>
+        </div>
+        <div id="shareLinkResult" class="share-link-result" style="display:none;"></div>
+      </div>
+
+      <!-- Version History -->
+      <div id="previewVersionSection" style="display:none; margin-top:1rem;">
+        <h4 class="preview-version-heading"><i class="ri-clipboard-line"></i> Version History</h4>
+        <div id="versionHistoryList" class="preview-version-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <script>
+  let currentFileFilter = 'all';
+  let currentTab = 'files';
+  let currentPreviewFileId = null;
+
+  // Tab switching
+  function switchFileTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.file-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    document.getElementById('myFilesSection').style.display = tab === 'files' ? '' : 'none';
+    document.getElementById('sharedFilesSection').style.display = tab === 'shared' ? '' : 'none';
+    document.getElementById('recycleBinSection').style.display = tab === 'recycle' ? '' : 'none';
+    document.querySelector('.filters').style.display = tab === 'files' ? '' : 'none';
+    document.getElementById('bulkToolbar').classList.remove('show');
+    if (tab === 'recycle') loadRecycleBin();
+  }
+
+  // Recycle bin
+  async function loadRecycleBin() {
+    try {
+      const res = await fetch('/auth/recycle-bin', { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      const container = document.getElementById('recycleBinContainer');
+      if (!data.success || !data.files.length) {
+        container.innerHTML = '<p>Recycle bin is empty</p>';
+        return;
+      }
+      container.innerHTML = data.files.map(f => {
+        const deletedDate = f.deletedAt ? new Date(f.deletedAt).toLocaleDateString() : '';
+        const safeId = escapeHtml(f._id);
+        return `<div class="file-card recycled" data-file-id="${safeId}">
+          <span class="file-icon-lg"><i class="ri-file-text-line"></i></span>
+          <p>${escapeHtml(f.originalName || f.filename)}</p>
+          <span class="text-hint">Deleted ${escapeHtml(deletedDate)}</span>
+          <div style="margin-top:0.5rem;display:flex;gap:0.3rem;">
+            <button class="btn-action btn-restore" onclick="event.stopPropagation();restoreFile(this.closest('.file-card').dataset.fileId)"><i class="ri-recycle-line"></i> Restore</button>
+            <button class="btn-action btn-danger" onclick="event.stopPropagation();purgeFile(this.closest('.file-card').dataset.fileId)"><i class="ri-delete-bin-line"></i> Purge</button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) { console.error('loadRecycleBin error', e); }
+  }
+
+  async function restoreFile(fileId) {
+    try {
+      const data = await postNoBody('/auth/recycle-bin/restore/' + encodeURIComponent(fileId));
+      if (data.success) { showFeedbackToast('File restored', 'success'); setTimeout(() => location.reload(), 700); }
+      else showFeedbackToast('' + (data.message || 'Restore failed'), 'error');
+    } catch (e) { showFeedbackToast('Error', 'error'); }
+  }
+
+  async function purgeFile(fileId) {
+    openActionConfirm('<i class="ri-delete-bin-line"></i> Permanently Delete', 'This will permanently delete the file and all versions. This cannot be undone.', 'Purge', 'danger', async () => {
+      try {
+        const data = await postNoBody('/auth/recycle-bin/purge/' + encodeURIComponent(fileId));
+        if (data.success) { showFeedbackToast('File permanently deleted', 'success'); loadRecycleBin(); }
+        else showFeedbackToast('' + (data.message || 'Purge failed'), 'error');
+      } catch (e) { showFeedbackToast('Error', 'error'); }
+    });
+  }
+
+  // Bulk operations
+  function updateBulkToolbar() {
+    const checked = document.querySelectorAll('.file-card-check:checked');
+    const toolbar = document.getElementById('bulkToolbar');
+    const countEl = document.getElementById('bulkCount');
+    if (checked.length > 0) {
+      toolbar.classList.add('show');
+      countEl.textContent = checked.length + ' selected';
+      checked.forEach(cb => cb.closest('.file-card').classList.add('selected'));
+    } else {
+      toolbar.classList.remove('show');
+    }
+    // deselect unchecked
+    document.querySelectorAll('.file-card-check:not(:checked)').forEach(cb => cb.closest('.file-card').classList.remove('selected'));
+  }
+
+  function clearBulkSelection() {
+    document.querySelectorAll('.file-card-check:checked').forEach(cb => { cb.checked = false; cb.closest('.file-card').classList.remove('selected'); });
+    document.getElementById('bulkToolbar').classList.remove('show');
+  }
+
+  function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.file-card-check:checked')).map(cb => cb.getAttribute('data-id'));
+  }
+
+  async function bulkDelete() {
+    const ids = getSelectedIds();
+    if (!ids.length) return;
+    openActionConfirm('<i class="ri-delete-bin-line"></i> Bulk Delete', `Move ${ids.length} file(s) to recycle bin?`, 'Delete', 'danger', async () => {
+      try {
+        const res = await fetch('/auth/file/bulk-delete', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.RequestHelpers.getCsrfToken() || '' },
+          body: JSON.stringify({ fileIds: ids })
+        });
+        const data = await res.json();
+        if (data.success) { showFeedbackToast('' + data.message, 'success'); setTimeout(() => location.reload(), 700); }
+        else showFeedbackToast('' + (data.message || 'Bulk delete failed'), 'error');
+      } catch (e) { showFeedbackToast('Error', 'error'); }
+    });
+  }
+
+  function bulkDownload() {
+    const ids = getSelectedIds();
+    if (!ids.length) return;
+    window.location.href = '/auth/file/bulk-download?ids=' + ids.join(',');
+  }
+
+  // Server-side search
+  async function serverSearch() {
+    const q = (document.getElementById('searchInput').value || '').trim();
+    const from = document.getElementById('searchFrom').value;
+    const to = document.getElementById('searchTo').value;
+    if (!q && !from && !to) { applyFileFilters(); return; }
+
+    try {
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const res = await fetch('/auth/api/search?' + params.toString(), { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!data.success) return;
+
+      const container = document.getElementById('filesContainer');
+      if (!data.files.length) { container.innerHTML = '<p>No results found</p>'; return; }
+      container.innerHTML = data.files.map(f => {
+        const ext = (f.filename||'').toLowerCase().split('.').pop();
+        const isImg = ['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext);
+        const extCategory = isImg ? 'image' : (ext === 'pdf' ? 'pdf' : ((ext === 'docx' || ext === 'doc') ? 'docx' : (['xls','xlsx','csv'].includes(ext) ? 'excel' : 'other')));
+        const tagsHtml = (f.tags||[]).map(t => `<span class="file-tag">${escapeHtml(t)}</span>`).join('');
+        return `<div class="file-card" data-category="${escapeHtml(extCategory)}" data-file-id="${escapeHtml(f._id)}" data-filename="${escapeHtml(f.filename)}" data-filetype="${escapeHtml(f.filetype)}" onclick="openPreview(this.dataset.filename, this.dataset.filetype, this.dataset.fileId)">
+          ${f.version > 1 ? `<span class="version-badge">v${parseInt(f.version)}</span>` : ''}
+          ${isImg ? `<img src="/uploads/${encodeURIComponent(f.filename)}" class="file-thumb" alt="" />` : '<span class="file-icon-lg"><i class="ri-file-text-line"></i></span>'}
+          <p>${escapeHtml(f.originalName || f.filename)}</p>
+          <span class="file-category">${escapeHtml(extCategory.toUpperCase())}</span>
+          ${tagsHtml ? `<div class="file-tags">${tagsHtml}</div>` : ''}
+        </div>`;
+      }).join('');
+    } catch (e) { console.error('search error', e); }
+  }
+
+  // Storage usage
+  async function loadStorageUsage() {
+    try {
+      const res = await fetch('/auth/api/storage', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!data.success || !data.quotaBytes) return;
+      const pct = Math.min(100, (data.usedBytes / data.quotaBytes) * 100);
+      document.getElementById('storageBarFill').style.width = pct + '%';
+      const usedMB = (data.usedBytes / (1024*1024)).toFixed(1);
+      const quotaMB = (data.quotaBytes / (1024*1024)).toFixed(1);
+      document.getElementById('storageText').textContent = `${usedMB} MB / ${quotaMB} MB used (${data.fileCount} files)`;
+      document.getElementById('storageBarWrap').style.display = '';
+    } catch (e) {}
+  }
+  loadStorageUsage();
+
+  function applyFileFilters() {
+    const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const cards = document.querySelectorAll('.file-card');
+
+    cards.forEach(card => {
+      const name = (card.querySelector('p')?.textContent || '').toLowerCase();
+      const extensionCategory = card.getAttribute('data-category');
+      const matchesSearch = name.includes(query);
+      const matchesCategory = currentFileFilter === 'all' || extensionCategory === currentFileFilter;
+      card.style.display = (matchesSearch && matchesCategory) ? 'block' : 'none';
+    });
+  }
+
+  function searchFiles() {
+    const headerInput = document.getElementById('headerSearchInput');
+    const enhancedInput = document.getElementById('searchInput');
+    if (headerInput && enhancedInput && headerInput.value) {
+      enhancedInput.value = headerInput.value;
+    }
+    applyFileFilters();
+  }
+
+  function filterFiles(category, btn) {
+    currentFileFilter = category;
+    document.querySelectorAll('.filters .filter-btn').forEach(button => button.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    applyFileFilters();
+  }
+
+  let pendingAction = null;
+
+  function openActionConfirm(title, message, confirmText, variant, onConfirm) {
+    const modal = document.getElementById('actionConfirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOkBtn');
+    if (!modal || !titleEl || !messageEl || !okBtn) return;
+
+    titleEl.textContent = '';
+    var iconMatch = title ? title.match(/^<i\s+class="(ri-[a-z0-9-]+)"\s*><\/i>\s*/) : null;
+    if (iconMatch) {
+      var icon = document.createElement('i');
+      icon.className = iconMatch[1];
+      icon.style.marginRight = '8px';
+      titleEl.appendChild(icon);
+      titleEl.appendChild(document.createTextNode(title.replace(iconMatch[0], '')));
+    } else {
+      titleEl.textContent = title || 'Confirm Action';
+    }
+    messageEl.textContent = message || 'Are you sure?';
+    okBtn.textContent = confirmText || 'Confirm';
+    okBtn.classList.remove('primary', 'danger');
+    okBtn.classList.add(variant === 'danger' ? 'danger' : 'primary');
+    pendingAction = typeof onConfirm === 'function' ? onConfirm : null;
+
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeActionConfirm() {
+    const modal = document.getElementById('actionConfirmModal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    pendingAction = null;
+  }
+
+  function confirmActionProceed() {
+    const action = pendingAction;
+    closeActionConfirm();
+    if (action) action();
+  }
+
+  function showFeedbackToast(message, type) {
+    const modal = document.getElementById('feedbackModal');
+    const feedbackBox = document.getElementById('feedbackBox');
+    const feedbackMessage = document.getElementById('feedbackMessage');
+    if (!modal || !feedbackBox || !feedbackMessage) return;
+
+    const iconMap = { success: 'ri-check-line', error: 'ri-close-circle-line', info: 'ri-information-line' };
+    const iconClass = iconMap[type] || iconMap.info;
+    const iconEl = document.createElement('i');
+    iconEl.className = iconClass;
+    feedbackMessage.textContent = '';
+    feedbackMessage.appendChild(iconEl);
+    feedbackMessage.append(' ' + message);
+    feedbackBox.className = type === 'error' ? 'modal-content error' : 'modal-content success';
+    modal.classList.add('show');
+    setTimeout(() => modal.classList.remove('show'), 2200);
+  }
+
+  document.getElementById('searchInput')?.addEventListener('input', applyFileFilters);
+
+  function openPreview(filename, filetype, fileId) {
+    currentPreviewFileId = fileId;
+    document.getElementById('previewTitle').textContent = filename;
+    const downloadBtn = document.getElementById('downloadBtn');
+    downloadBtn.onclick = function() {
+      openActionConfirm(
+        '<i class="ri-download-line"></i> Download File',
+        `Do you want to download this file?\n\n${filename}`,
+        'Download',
+        'primary',
+        function() {
+          const link = document.createElement('a');
+          link.href = `/uploads/${encodeURIComponent(filename)}`;
+          link.setAttribute('download', filename);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }
+      );
+    };
+
+    const previewArea = document.getElementById('previewArea');
+    previewArea.innerHTML = '';
+
+    // Determine actual file type by extension for proper preview rendering
+    const ext = filename.toLowerCase().split('.').pop();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext);
+    const isPdf = ext === 'pdf';
+    const isDocx = ext === 'docx' || ext === 'doc';
+    const isXlsx = ext === 'xlsx' || ext === 'xls' || ext === 'csv';
+
+    if (isImage) {
+      previewArea.innerHTML = `<img id="previewImg" src="/uploads/${encodeURIComponent(filename)}" alt="${escapeHtml(filename)}" class="preview-img" />`;
+      document.getElementById('viewBtn').onclick = function() {
+        openActionConfirm(
+          '<i class="ri-eye-line"></i> View File',
+          `Do you want to view this file?\n\n${filename}`,
+          'View',
+          'primary',
+          function() {
+            const img = document.getElementById('previewImg');
+            if (img && img.requestFullscreen) img.requestFullscreen();
+            else window.open('/uploads/' + encodeURIComponent(filename), '_blank');
+          }
+        );
+      };
+    } else if (isPdf) {
+      previewArea.innerHTML = '<div id="pdfLoader" class="pdf-loader">Rendering preview <span class="dot"></span><span class="dot"></span><span class="dot"></span></div><canvas id="pdfCanvas" class="preview-canvas" style="display:none;"></canvas>';
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        const loadingTask = pdfjsLib.getDocument('/uploads/' + filename);
+        loadingTask.promise.then(function(pdf) {
+          pdf.getPage(1).then(function(page) {
+            const viewport = page.getViewport({ scale: 1.2 });
+            const canvas = document.getElementById('pdfCanvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            const renderContext = { canvasContext: context, viewport: viewport };
+            page.render(renderContext).promise.then(function() {
+              const loader = document.getElementById('pdfLoader');
+              if (loader) loader.style.display = 'none';
+              canvas.style.display = 'block';
+            }).catch(function(err) {
+              const loader = document.getElementById('pdfLoader');
+              if (loader) loader.style.display = 'none';
+              previewArea.innerHTML = '<div class="text-error">Unable to render PDF preview</div>';
+              console.error('PDF page render error', err);
+            });
+          }).catch(function(err) {
+            const loader = document.getElementById('pdfLoader');
+            if (loader) loader.style.display = 'none';
+            previewArea.innerHTML = '<div class="text-error">Unable to get PDF page</div>';
+            console.error('PDF getPage error', err);
+          });
+        }).catch(function(err) {
+          const loader = document.getElementById('pdfLoader');
+          if (loader) loader.style.display = 'none';
+          previewArea.innerHTML = '<div class="text-error">Unable to load PDF</div>';
+          console.error('PDF load error', err);
+        });
+      } catch (err) {
+        const loader = document.getElementById('pdfLoader');
+        if (loader) loader.style.display = 'none';
+        previewArea.innerHTML = '<div class="text-error">PDF preview error</div>';
+        console.error('PDF preview init error', err);
+      }
+      document.getElementById('viewBtn').onclick = function() {
+        openActionConfirm(
+          '<i class="ri-eye-line"></i> View File',
+          `Do you want to view this file?\n\n${filename}`,
+          'View',
+          'primary',
+          function() { window.open('/uploads/' + encodeURIComponent(filename), '_blank'); }
+        );
+      };
+    } else if (isDocx || isXlsx) {
+      // DOCX/XLSX server-side preview
+      previewArea.innerHTML = '<div class="text-loading">Loading preview...</div>';
+      fetch('/auth/file/preview/' + encodeURIComponent(fileId), { credentials: 'same-origin' })
+        .then(r => {
+          if (!r.ok) throw new Error(`Server error: ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          if (data.success) {
+            previewArea.innerHTML = `<div class="docx-preview">${data.html}</div>`;
+          } else {
+            previewArea.innerHTML = `<div class="fallback-icon"><i class="ri-file-text-line"></i></div><p>${escapeHtml(filename)}</p>`;
+          }
+        })
+        .catch(() => {
+          previewArea.innerHTML = `<div class="fallback-icon"><i class="ri-file-text-line"></i></div><p>${escapeHtml(filename)}</p>`;
+        });
+      document.getElementById('viewBtn').onclick = function() {
+        openActionConfirm('<i class="ri-eye-line"></i> View File', `Do you want to view this file?\n\n${filename}`, 'View', 'primary',
+          function() { window.open('/uploads/' + encodeURIComponent(filename), '_blank'); }
+        );
+      };
+    } else {
+      previewArea.innerHTML = `<div class="fallback-icon"><i class="ri-file-text-line"></i></div><p>${escapeHtml(filename)}</p>`;
+      document.getElementById('viewBtn').onclick = function() {
+        openActionConfirm(
+          '<i class="ri-eye-line"></i> View File',
+          `Do you want to view this file?\n\n${filename}`,
+          'View',
+          'primary',
+          function() { window.open('/uploads/' + encodeURIComponent(filename), '_blank'); }
+        );
+      };
+    }
+
+    const deleteBtn = document.getElementById('deleteBtnFile');
+    if (deleteBtn) deleteBtn.remove();
+
+    // All users can delete their own files (soft delete)
+    const newDeleteBtn = document.createElement('button');
+    newDeleteBtn.id = 'deleteBtnFile';
+    newDeleteBtn.className = 'btn-action btn-danger';
+    newDeleteBtn.innerHTML = '<i class="ri-delete-bin-line"></i> Delete';
+    newDeleteBtn.onclick = function() {
+      deleteUserFile(fileId);
+    };
+    downloadBtn.parentElement.appendChild(newDeleteBtn);
+
+    // Show tags section (only for own files)
+    const tagsSection = document.getElementById('previewTagsSection');
+    const shareSection = document.getElementById('previewShareSection');
+    const versionSection = document.getElementById('previewVersionSection');
+    tagsSection.style.display = '';
+    shareSection.style.display = '';
+    versionSection.style.display = 'none';
+
+    // Load tags from the card
+    const cardEl = document.querySelector(`.file-card[data-file-id="${fileId}"]`);
+    const existingTags = cardEl ? Array.from(cardEl.querySelectorAll('.file-tag')).map(e => e.textContent) : [];
+    document.getElementById('previewTagsList').innerHTML = existingTags.map(t => `<span class="file-tag">${escapeHtml(t)}</span>`).join('');
+    document.getElementById('previewTagsInput').value = existingTags.join(', ');
+
+    // Load version history
+    loadVersionHistory(fileId);
+
+    document.getElementById('shareLinkResult').style.display = 'none';
+    document.getElementById('shareEmailsInput').value = '';
+
+    document.getElementById('previewModal').classList.add('show');
+  }
+
+  // Tags save
+  async function saveFileTags() {
+    if (!currentPreviewFileId) return;
+    const tags = document.getElementById('previewTagsInput').value;
+    try {
+      const res = await fetch('/auth/file/tags/' + encodeURIComponent(currentPreviewFileId), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.RequestHelpers.getCsrfToken() || '' },
+        body: JSON.stringify({ tags })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('previewTagsList').innerHTML = (data.tags||[]).map(t => `<span class="file-tag">${escapeHtml(t)}</span>`).join('');
+        showFeedbackToast('Tags saved', 'success');
+        // Update card tags
+        const card = document.querySelector(`.file-card[data-file-id="${currentPreviewFileId}"]`);
+        if (card) {
+          let tagsDiv = card.querySelector('.file-tags');
+          if (!tagsDiv) { tagsDiv = document.createElement('div'); tagsDiv.className = 'file-tags'; card.appendChild(tagsDiv); }
+          tagsDiv.innerHTML = (data.tags||[]).map(t => `<span class="file-tag">${escapeHtml(t)}</span>`).join('');
+        }
+      } else showFeedbackToast('' + (data.message || 'Failed'), 'error');
+    } catch (e) { showFeedbackToast('Error', 'error'); }
+  }
+
+  // Share with users
+  async function shareFileWithUsers() {
+    if (!currentPreviewFileId) return;
+    const raw = document.getElementById('shareEmailsInput').value.trim();
+    if (!raw) return;
+    const emails = raw.split(',').map(e => e.trim()).filter(Boolean);
+    try {
+      const res = await fetch('/auth/file/share/' + encodeURIComponent(currentPreviewFileId), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.RequestHelpers.getCsrfToken() || '' },
+        body: JSON.stringify({ emails })
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        showFeedbackToast('Shared with ' + (data.sharedWith||[]).join(', '), 'success');
+      } else showFeedbackToast('' + (data.message || 'Failed'), 'error');
+    } catch (e) { showFeedbackToast('Error', 'error'); }
+  }
+
+  // Create share link
+  async function createShareLink() {
+    if (!currentPreviewFileId) return;
+    const expiresInHours = Number(document.getElementById('shareLinkExpiry').value) || 24;
+    const maxDownloads = Number(document.getElementById('shareLinkMaxDl').value) || 0;
+    try {
+      const res = await fetch('/auth/file/share-link/' + encodeURIComponent(currentPreviewFileId), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.RequestHelpers.getCsrfToken() || '' },
+        body: JSON.stringify({ expiresInHours, maxDownloads })
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        const resultEl = document.getElementById('shareLinkResult');
+        resultEl.style.display = '';
+        const safeUrl = escapeHtml(data.shareUrl || '');
+        resultEl.innerHTML = `<strong>Share URL:</strong> <a href="${safeUrl}" target="_blank">${safeUrl}</a><br><small>Expires: ${escapeHtml(new Date(data.expiresAt).toLocaleString())}</small>`;
+      } else showFeedbackToast('' + (data.message || 'Failed'), 'error');
+    } catch (e) { showFeedbackToast('Error', 'error'); }
+  }
+
+  // Version history
+  async function loadVersionHistory(fileId) {
+    try {
+      const res = await fetch('/auth/file/versions/' + encodeURIComponent(fileId), { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      if (data.success && data.versions && data.versions.length) {
+        const section = document.getElementById('previewVersionSection');
+        section.style.display = '';
+        const list = document.getElementById('versionHistoryList');
+        list.innerHTML = `<div class="preview-version-header"><strong>Current: v${data.currentVersion}</strong></div>` +
+          data.versions.map(v => `<div class="preview-version-row">v${data.versions.indexOf(v)+1} â€” ${(v.sizeBytes/1024).toFixed(1)}KB â€” ${new Date(v.uploadedAt).toLocaleString()}</div>`).join('');
+      }
+    } catch (e) {}
+  }
+
+  function deleteUserFile(fileId) {
+    openActionConfirm(
+      '<i class="ri-delete-bin-line"></i> Delete File',
+      'This file will be moved to the recycle bin. You can restore it within 30 days.',
+      'Delete',
+      'danger',
+      async function() {
+        try {
+          const data = await postNoBody(`/auth/file/delete/${encodeURIComponent(fileId)}`);
+          if (data.success) {
+            showFeedbackToast('File moved to recycle bin', 'success');
+            setTimeout(() => location.reload(), 700);
+          } else {
+            showFeedbackToast('' + (data.message || 'Delete failed'), 'error');
+          }
+        } catch (err) {
+          showFeedbackToast('Error: ' + (err.message || 'Delete failed'), 'error');
+        }
+      }
+    );
+  }
+
+  function closePreview() {
+    document.getElementById('previewModal').classList.remove('show');
+  }
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closePreview();
+      closeProfileModal();
+      closeActionConfirm();
+    }
+  });
+
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
+  if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeActionConfirm);
+  if (confirmOkBtn) confirmOkBtn.addEventListener('click', confirmActionProceed);
+  </script>
+
+  <%- include('partials/scripts', { email: email, fullname: fullname, role: role }) %>
+
+</body>
+</html>
+
+

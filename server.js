@@ -1,0 +1,465 @@
+require('dotenv').config();
+const { enforceEnv } = require('./utils/envValidator');
+enforceEnv();
+
+const express = require("express");
+const bodyParser = require("body-parser");
+const path = require("path");
+const crypto = require("crypto");
+const fs = require("fs");
+const http = require('http');
+const connectDB = require("./config/mongo"); // ✅ MongoDB connection
+const User = require("./models/User");
+const File = require("./models/File");
+const ShareLink = require("./models/ShareLink");
+const SystemSettings = require("./models/SystemSettings");
+const RefreshToken = require("./models/RefreshToken");
+const RevokedToken = require("./models/RevokedToken");
+const bcrypt = require("bcrypt");
+const sessionMiddleware = require("./middleware/sessionMiddleware");
+const { encrypt, decrypt, generateSecureToken } = require("./utils/encryption");
+const logger = require('./utils/logger');
+const { initPush } = require('./utils/pushNotify');
+const { loadFeedbackWeights } = require('./ai/fileCategorizer');
+const { globalErrorHandler } = require('./utils/errorHandler');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "127.0.0.1";
+const NODE_ENV = process.env.NODE_ENV || "development";
+
+// Security Headers Middleware (similar to helmet)
+app.use((req, res, next) => {
+  // Generate nonce for CSP
+  res.locals.nonce = crypto.randomBytes(16).toString("base64");
+  
+  // Prevent clickjacking
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  
+  // Prevent MIME type sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  
+  // Enable XSS filter
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  
+  // Control referrer information
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  
+  // Permissions Policy
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  
+  // Content Security Policy
+  // NOTE: 'unsafe-inline' is used for script-src because the EJS dashboards
+  // rely heavily on inline <script> blocks and onclick handlers.
+  // To tighten later: add nonce attrs to <script> tags, convert onclick to
+  // addEventListener, then switch to nonce-based CSP.
+  res.setHeader("Content-Security-Policy", [
+    `default-src 'self'`,
+    `script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net`,
+    `style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com`,
+    `font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com`,
+    `img-src 'self' data: blob: https://via.placeholder.com`,
+    `connect-src 'self' ws: wss:`,
+    `frame-ancestors 'self'`
+  ].join('; '));
+
+  // HSTS in production
+  if (NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  
+  next();
+});
+
+if (NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+  app.use((req, res, next) => {
+    const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+    if (req.secure || forwardedProto === "https") return next();
+    const host = req.headers.host;
+    if (!host) return res.status(400).send("Bad Request");
+    return res.redirect(301, `https://${host}${req.originalUrl}`);
+  });
+}
+
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json()); // ✅ Add JSON support
+app.use(sessionMiddleware);
+app.use(express.static(path.join(__dirname, "public")));
+
+// CSRF Protection
+const { csrfProtection, csrfTokenEndpoint } = require("./middleware/csrfMiddleware");
+app.use(csrfProtection({
+  ignorePaths: [
+    "/auth/login",          // Login form POST (no session yet)
+    "/auth/register",       // Registration form POST (no session yet)
+    "/auth/forgot-password", // Password reset request
+    "/auth/reset-password/", // Password reset with token
+    "/auth/refresh",        // JWT refresh (uses refresh token cookie)
+    "/auth/2fa/verify",     // 2FA verification during login
+    "/auth/invite/accept",  // Invitation acceptance
+    "/socket.io"            // WebSocket connections
+  ]
+}));
+
+// CSRF token endpoint for AJAX requests
+app.get("/csrf-token", csrfTokenEndpoint);
+
+// Security headers - prevent caching of authenticated pages
+app.use((req, res, next) => {
+  // For dashboard routes, prevent browser caching
+  if (req.path.includes('/dashboard') || req.path.startsWith('/admin') || req.path.startsWith('/superadmin')) {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+  }
+  next();
+});
+
+// Structured request logger via winston
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.originalUrl}`, {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip
+  });
+  next();
+});
+
+//Upload view - require authentication + ownership check
+app.get('/uploads/:filename', async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const requestedFilename = req.params.filename;
+
+    // Path traversal guard
+    const uploadsBase = path.resolve(__dirname, 'uploads');
+    const resolved = path.resolve(uploadsBase, requestedFilename);
+    if (!resolved.startsWith(uploadsBase + path.sep) && resolved !== uploadsBase) {
+      return res.status(400).json({ success: false, message: 'Invalid filename' });
+    }
+
+    if (!fs.existsSync(resolved)) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    // Admins and super_admins can access all files
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+      return res.sendFile(resolved);
+    }
+
+    // Regular users can only access their own files or their own avatar
+    if (req.user.avatar === requestedFilename) {
+      return res.sendFile(resolved);
+    }
+
+    // Check ownership or shared access
+    const fileRecord = await File.findOne({
+      filename: requestedFilename,
+      deleted: { $ne: true },
+      $or: [
+        { owner: req.user._id },
+        { sharedWith: req.user._id }
+      ]
+    });
+    if (!fileRecord) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    res.sendFile(resolved);
+  } catch (err) {
+    logger.error('Upload file access error:', err.message);
+    res.status(500).json({ success: false, message: 'Error accessing file' });
+  }
+});
+
+
+app.set("view engine", "ejs");
+
+// create HTTP server and attach socket.io
+const server = http.createServer(app);
+const { initSocketIO } = require('./utils/socketHandlers');
+const io = initSocketIO(server, app);
+
+// Public share link download (no auth required)
+app.get('/share/:token', async (req, res) => {
+  try {
+    // Atomic increment to prevent race condition on downloadCount
+    const link = await ShareLink.findOneAndUpdate(
+      {
+        token: req.params.token,
+        expiresAt: { $gt: new Date() }
+      },
+      { $inc: { downloadCount: 1 } },
+      { new: true }
+    ).populate('file');
+
+    if (!link || !link.file) {
+      return res.status(404).send('Share link not found or expired');
+    }
+    if (link.maxDownloads > 0 && link.downloadCount > link.maxDownloads) {
+      // Rolled past the limit — undo the increment
+      await ShareLink.updateOne({ _id: link._id }, { $inc: { downloadCount: -1 } });
+      return res.status(410).send('Download limit reached');
+    }
+
+    // Path traversal guard
+    const uploadsBase = path.resolve(__dirname, 'uploads');
+    const filePath = path.resolve(uploadsBase, link.file.filename);
+    if (!filePath.startsWith(uploadsBase + path.sep)) {
+      return res.status(400).send('Invalid file reference');
+    }
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File no longer exists');
+    }
+
+    res.download(filePath, link.file.originalName || link.file.filename);
+  } catch (err) {
+    res.status(500).send('Error processing share link');
+  }
+});
+
+
+// Routes
+const authRoutes = require("./routes/auth");
+const dashboardRoutes = require("./routes/dashboard");
+const fileRoutes = require("./routes/files");
+const profileRoutes = require("./routes/profile");
+const adminRoutes = require("./routes/admin");
+const superAdminRoutes = require("./routes/superadmin");
+const messagesRoutes = require("./routes/messages");
+const notificationsRoutes = require("./routes/notifications");
+const apiRoutes = require("./routes/api");
+app.use("/auth", authRoutes);
+app.use("/auth", dashboardRoutes);
+app.use("/auth", fileRoutes);
+app.use("/auth", profileRoutes);
+app.use("/admin", adminRoutes);
+app.use("/superadmin", superAdminRoutes);
+app.use("/messages", messagesRoutes);
+app.use("/notifications", notificationsRoutes);
+app.use("/api/v1", apiRoutes);
+
+// Default route → show landing page
+app.get("/", (req, res) => {
+  res.render("landing");
+});
+
+// Aliases for cleaner URLs
+app.get("/login", (req, res) => {
+  res.redirect("/auth/login");
+});
+
+app.get("/register", (req, res) => {
+  res.redirect("/auth/register");
+});
+
+// Connect MongoDB and then create Super Admin
+connectDB().then(async () => {
+  await ensureFileIndexes();
+  await ensureTokenIndexes();
+  await createDefaultSuperAdmin();
+  startTokenCleanupJob();
+  startRecycleBinCleanupJob();
+  // Load AI categorizer feedback weights from DB
+  try { await loadFeedbackWeights(); logger.info('AI feedback weights loaded'); } catch (_) {}
+  // Initialize Web Push
+  initPush();
+});
+
+async function ensureFileIndexes() {
+  try {
+    await File.createIndexes();
+    const indexes = await File.collection.indexes();
+    const indexNames = indexes.map((idx) => idx.name);
+    console.log("ℹ️ File indexes ready:", indexNames.join(", "));
+  } catch (err) {
+    console.warn("⚠️ Unable to verify File indexes:", err.message);
+  }
+}
+
+async function ensureTokenIndexes() {
+  try {
+    await normalizeTokenTtlIndexes();
+    await RefreshToken.createIndexes();
+    await RevokedToken.createIndexes();
+    console.log("ℹ️ Token lifecycle indexes ready");
+  } catch (err) {
+    console.warn("⚠️ Unable to verify token lifecycle indexes:", err.message);
+  }
+}
+
+async function normalizeTokenTtlIndexes() {
+  const collections = [RefreshToken.collection, RevokedToken.collection];
+
+  for (const collection of collections) {
+    const indexes = await collection.indexes();
+    const expiresIndex = indexes.find((idx) => idx && idx.name === "expiresAt_1");
+    if (!expiresIndex) continue;
+    const hasTtl = typeof expiresIndex.expireAfterSeconds === "number";
+    if (hasTtl) continue;
+    await collection.dropIndex("expiresAt_1");
+  }
+}
+
+// Auto-create Super Admin
+async function createDefaultSuperAdmin() {
+  try {
+    const seedEnabled = process.env.ENABLE_DEFAULT_SUPERADMIN_SEED === "true";
+    if (!seedEnabled) {
+      console.log("ℹ️ Default Super Admin seed is disabled (set ENABLE_DEFAULT_SUPERADMIN_SEED=true to enable).");
+      return;
+    }
+
+    const superAdminEmail = (process.env.DEFAULT_SUPERADMIN_EMAIL || "").trim();
+    const superAdminPassword = process.env.DEFAULT_SUPERADMIN_PASSWORD || "";
+
+    if (!superAdminEmail || !superAdminPassword) {
+      console.warn("⚠️ Super Admin seed skipped: DEFAULT_SUPERADMIN_EMAIL and DEFAULT_SUPERADMIN_PASSWORD must be set.");
+      return;
+    }
+
+    if (NODE_ENV === "production" && superAdminPassword.length < 12) {
+      logger.error("Super Admin seed blocked: DEFAULT_SUPERADMIN_PASSWORD must be at least 12 characters in production.");
+      return;
+    }
+
+    const existingSuperAdmin = await User.findOne({ role: "super_admin" });
+
+    if (NODE_ENV === "production" && existingSuperAdmin) {
+      console.log("ℹ️ Super Admin already exists, skipping creation.");
+      console.warn("⚠️ ENABLE_DEFAULT_SUPERADMIN_SEED is still true in production. Disable it after initial provisioning.");
+      return;
+    }
+
+    if (!existingSuperAdmin) {
+      const hashedPassword = await bcrypt.hash(superAdminPassword, 12);
+      const superAdmin = new User({
+        fullname: "Default Super Admin",
+        email: superAdminEmail,
+        password: hashedPassword,
+        role: "super_admin"
+      });
+      await superAdmin.save();
+      console.log(`✅ Default Super Admin created: ${superAdminEmail}`);
+    } else {
+      console.log("ℹ️ Super Admin already exists, skipping creation.");
+    }
+  } catch (err) {
+    logger.error("Error creating Super Admin:", err.message);
+  }
+}
+
+// Scheduled cleanup for expired tokens (runs every 6 hours)
+function startTokenCleanupJob() {
+  const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+  async function runCleanup() {
+    try {
+      const now = new Date();
+      const revokedResult = await RevokedToken.deleteMany({ expiresAt: { $lt: now } });
+      const refreshResult = await RefreshToken.deleteMany({ expiresAt: { $lt: now } });
+      const total = (revokedResult.deletedCount || 0) + (refreshResult.deletedCount || 0);
+      if (total > 0) {
+        console.log(`[Token Cleanup] Purged ${revokedResult.deletedCount} revoked + ${refreshResult.deletedCount} expired refresh tokens`);
+      }
+    } catch (err) {
+      logger.error("[Token Cleanup] Error:", err.message);
+    }
+  }
+
+  // Run once on startup, then every 6 hours
+  runCleanup();
+  setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+  console.log("ℹ️ Token cleanup job scheduled (every 6 hours)");
+}
+
+// Scheduled cleanup for recycle bin (runs every 12 hours)
+function startRecycleBinCleanupJob() {
+  const CLEANUP_INTERVAL_MS = 12 * 60 * 60 * 1000;
+
+  async function runRecycleBinCleanup() {
+    try {
+      const settings = await SystemSettings.findOne({});
+      const days = (settings && settings.recycleBinDays) || 30;
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const expiredFiles = await File.find({ deleted: true, deletedAt: { $lt: cutoff } });
+      if (!expiredFiles.length) return;
+
+      for (const file of expiredFiles) {
+        const allFilenames = [file.filename, ...file.versions.map(v => v.filename)];
+        for (const fn of allFilenames) {
+          try { fs.unlinkSync(path.join(__dirname, "uploads", fn)); } catch (_) {}
+        }
+        await File.findByIdAndDelete(file._id);
+      }
+      console.log(`[Recycle Bin Cleanup] Permanently deleted ${expiredFiles.length} expired file(s)`);
+    } catch (err) {
+      logger.error("[Recycle Bin Cleanup] Error:", err.message);
+    }
+  }
+
+  runRecycleBinCleanup();
+  setInterval(runRecycleBinCleanup, CLEANUP_INTERVAL_MS);
+  console.log("ℹ️ Recycle bin cleanup job scheduled (every 12 hours)");
+}
+
+function startServer(initialPort, host) {
+  const maxPortRetries = NODE_ENV === "production" ? 0 : 10;
+  const basePort = Number(initialPort);
+
+  const tryListen = (attempt) => {
+    const currentPort = basePort + attempt;
+
+    const onListening = () => {
+      server.removeListener("error", onError);
+      if (attempt > 0) {
+        console.log(`⚠️ Port ${basePort} was busy. Server started on http://${host}:${currentPort}`);
+      } else {
+        console.log(`Server running on http://${host}:${currentPort}`);
+      }
+    };
+
+    const onError = (err) => {
+      server.removeListener("listening", onListening);
+      if (err && err.code === "EADDRINUSE" && attempt < maxPortRetries) {
+        const nextPort = currentPort + 1;
+        console.warn(`⚠️ Port in use. Retrying on ${host}:${nextPort}...`);
+        setTimeout(() => tryListen(attempt + 1), 100);
+        return;
+      }
+
+      logger.error("Server failed to start:", err && err.message ? err.message : err);
+      process.exit(1);
+    };
+
+    server.once("listening", onListening);
+    server.once("error", onError);
+    server.listen(currentPort, host);
+  };
+
+  tryListen(0);
+}
+
+// Global error handler (centralized JSON format) — must be registered before server starts
+app.use(globalErrorHandler);
+
+startServer(PORT, HOST);
+
+// Process-level error handlers (log via winston)
+process.on('uncaughtException', (err) => {
+  logger.error('UNCAUGHT EXCEPTION', { stack: err && err.stack ? err.stack : String(err) });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('UNHANDLED REJECTION', { reason: reason && reason.stack ? reason.stack : String(reason) });
+});

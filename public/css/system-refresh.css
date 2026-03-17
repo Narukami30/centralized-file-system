@@ -1,0 +1,658 @@
+:root {
+  --ui-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+  --ui-radius: 14px;
+}
+
+html,
+body {
+  scroll-behavior: smooth;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+.container,
+.card,
+.stat-card,
+.chart-card,
+.upload-form,
+.file-card,
+.login-card,
+.register-card,
+.profile-card,
+.modal-content,
+.table-wrapper,
+.message-card,
+.notification-card {
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+button,
+.btn,
+.btn-primary,
+.profile-save-btn,
+.confirm-btn,
+.action-btn,
+input[type="submit"],
+input[type="button"] {
+  border-radius: 10px !important;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+button:hover,
+.btn:hover,
+.btn-primary:hover,
+.profile-save-btn:hover,
+.confirm-btn:hover,
+.action-btn:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.14);
+}
+
+button:disabled,
+.btn:disabled,
+.btn-primary:disabled,
+.profile-save-btn:disabled,
+.confirm-btn:disabled,
+.action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+input,
+select,
+textarea,
+.styled-select {
+  border-radius: 10px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.styled-select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12) !important;
+}
+
+a {
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+}
+
+.drop-zone,
+.filters,
+.file-list,
+.upload-section,
+.stats,
+.sidebar,
+.topbar,
+header,
+.navbar {
+  border-radius: var(--ui-radius) !important;
+}
+
+.drop-zone {
+  border-style: dashed !important;
+}
+
+.drop-zone.dragover {
+  transform: translateY(-1px);
+}
+
+.action-toast,
+#actionToast,
+#feedbackBox {
+  border-radius: 12px !important;
+  box-shadow: 0 14px 30px rgba(17, 24, 39, 0.16) !important;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.08);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 24, 39, 0.28);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 24, 39, 0.44);
+}
+
+body.dark-mode,
+body.dark-mode .container,
+body.dark-mode .card,
+body.dark-mode .stat-card,
+body.dark-mode .file-card,
+body.dark-mode .upload-form,
+body.dark-mode .profile-card,
+body.dark-mode .modal-content {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26) !important;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea,
+body.dark-mode .styled-select {
+  color: inherit !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  opacity: 0.75;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus,
+body.dark-mode .styled-select:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16) !important;
+}
+
+body.dark-mode .drop-zone {
+  background: transparent !important;
+}
+
+body.dark-mode .table-wrapper,
+body.dark-mode .table-container,
+body.dark-mode .files-table-wrap {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.24) !important;
+}
+
+body.dark-mode thead th {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.dark-mode .action-toast,
+body.dark-mode #actionToast,
+body.dark-mode #feedbackBox {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38) !important;
+}
+
+@media (max-width: 1200px) {
+  .container,
+  main,
+  .main-content,
+  .content,
+  .dashboard-content {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .stats,
+  .stats-grid,
+  .overview-grid,
+  .cards-grid,
+  .files-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    font-size: 15px;
+  }
+
+  .dashboard-container {
+    display: block !important;
+  }
+
+  .layout,
+  .dashboard-layout,
+  .main-layout,
+  .app-layout {
+    display: block !important;
+  }
+
+  .sidebar {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin-bottom: 12px !important;
+  }
+
+  .sidebar ul {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .sidebar ul li {
+    margin: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .topbar,
+  header,
+  .navbar {
+    padding: 10px 12px !important;
+  }
+
+  .table-wrapper,
+  .table-container,
+  .files-table-wrap {
+    overflow-x: auto !important;
+  }
+
+  .main-content section > table,
+  section > table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .stats,
+  .stats-grid,
+  .overview-grid,
+  .cards-grid,
+  .files-grid,
+  .filters,
+  .filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card,
+  .stat-card,
+  .profile-card,
+  .upload-form,
+  .modal-content,
+  .notification-card,
+  .message-card {
+    padding: 12px !important;
+  }
+
+  button,
+  .btn,
+  .btn-primary,
+  .confirm-btn,
+  .profile-save-btn,
+  input,
+  select,
+  textarea {
+    min-height: 42px;
+  }
+
+  table {
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 8px !important;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar ul {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sidebar {
+    padding: 12px !important;
+  }
+
+  .main-content {
+    padding: 10px !important;
+  }
+
+  .main-content section {
+    margin-bottom: 10px !important;
+  }
+
+  .table-toolbar {
+    gap: 8px !important;
+  }
+
+  .table-toolbar label {
+    display: grid;
+    gap: 6px;
+  }
+
+  .action-toast,
+  #actionToast,
+  #feedbackBox {
+    width: calc(100% - 24px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+  }
+
+  .confirm-dialog,
+  .action-modal-card {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body {
+    font-size: 14px;
+  }
+
+  .sidebar ul {
+    grid-template-columns: 1fr;
+    gap: 6px !important;
+  }
+
+  .main-content,
+  .container,
+  .content,
+  main {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .card,
+  .stat-card,
+  .upload-form,
+  .profile-card,
+  .notification-card,
+  .message-card,
+  .modal-content {
+    padding: 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .table-wrapper,
+  .table-container,
+  .files-table-wrap,
+  .super-table-wrap {
+    overflow-x: auto !important;
+  }
+
+  th,
+  td {
+    font-size: 12px;
+    padding: 6px !important;
+  }
+
+  td button,
+  .super-table td button {
+    min-height: 34px;
+    font-size: 11px;
+    padding: 6px 8px !important;
+    margin: 2px 2px 2px 0 !important;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  .btn,
+  .btn-primary,
+  .confirm-btn,
+  .profile-save-btn {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  .stats-grid,
+  .overview-grid,
+  .cards-grid,
+  .files-grid,
+  .filters,
+  .filter-grid {
+    gap: 8px !important;
+  }
+}
+
+/* Admin + Superadmin precision pass (palette-preserving) */
+.main-content {
+  line-height: 1.45;
+}
+
+.main-content section {
+  margin-bottom: 18px;
+}
+
+.main-content h2,
+.main-content h3 {
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+}
+
+.stats-grid .stat-card {
+  min-height: 104px;
+}
+
+.stats-grid .stat-card h3,
+.stats-grid .stat-card .stat-title {
+  margin-bottom: 6px;
+}
+
+.stats-grid .stat-card p,
+.stats-grid .stat-card .stat-value {
+  font-weight: 700;
+}
+
+.table-toolbar {
+  gap: 10px;
+  align-items: center;
+}
+
+.table-toolbar input,
+.table-toolbar select,
+.table-toolbar button {
+  min-height: 40px;
+}
+
+.table-wrapper table,
+.table-container table,
+.files-table-wrap table {
+  width: 100%;
+}
+
+.table-wrapper th,
+.table-wrapper td,
+.table-container th,
+.table-container td,
+.files-table-wrap th,
+.files-table-wrap td {
+  vertical-align: middle;
+}
+
+body.dark-mode .main-content,
+body.dark-mode .main-content section,
+body.dark-mode .main-content h2,
+body.dark-mode .main-content h3,
+body.dark-mode .main-content p,
+body.dark-mode .main-content small,
+body.dark-mode .main-content li,
+body.dark-mode .main-content td,
+body.dark-mode .main-content th,
+body.dark-mode .main-content label {
+  color: inherit !important;
+}
+
+body.dark-mode .main-content td,
+body.dark-mode .main-content th,
+body.dark-mode .main-content p,
+body.dark-mode .main-content small {
+  opacity: 0.96;
+}
+
+body.dark-mode .table-toolbar input,
+body.dark-mode .table-toolbar select {
+  background: transparent !important;
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    padding: 12px !important;
+  }
+
+  .main-content section {
+    margin-bottom: 14px;
+  }
+
+  .table-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Super Admin table density/readability (palette-preserving) */
+.super-table-wrap {
+  overflow-x: auto;
+}
+
+.super-table {
+  min-width: 940px;
+  table-layout: fixed;
+}
+
+.super-table th,
+.super-table td {
+  padding: 10px 12px !important;
+  line-height: 1.3;
+}
+
+.super-table td {
+  word-break: break-word;
+}
+
+.super-table td button {
+  margin: 2px 4px 2px 0;
+}
+
+/* Manage Admins: email + branch */
+#admins .super-table tbody td:nth-child(2),
+#admins .super-table tbody td:nth-child(3),
+/* Manage Users: email + branch */
+#users .super-table tbody td:nth-child(2),
+#users .super-table tbody td:nth-child(4),
+/* Global Files: filename + uploaded by */
+#files .super-table tbody td:nth-child(1),
+#files .super-table tbody td:nth-child(3) {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .super-table {
+    min-width: 760px;
+  }
+}
+
+/* Admin/User dashboard responsive stability pass */
+@media (max-width: 900px) {
+  body.admin-dashboard-page .sidebar ul,
+  body.user-dashboard-page .sidebar ul {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  body.admin-dashboard-page .sidebar ul li,
+  body.user-dashboard-page .sidebar ul li {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+  }
+
+  body.admin-dashboard-page .sidebar ul li a,
+  body.user-dashboard-page .sidebar ul li a,
+  body.admin-dashboard-page .theme-toggle,
+  body.user-dashboard-page .theme-toggle {
+    white-space: nowrap;
+  }
+
+  body.admin-dashboard-page .main-content,
+  body.user-dashboard-page .main-content {
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 700px) {
+  body.admin-dashboard-page .file-management,
+  body.admin-dashboard-page .user-management,
+  body.admin-dashboard-page .audit-logs,
+  body.admin-dashboard-page .reports {
+    overflow-x: auto;
+  }
+
+  body.admin-dashboard-page table {
+    min-width: 720px;
+  }
+
+  body.admin-dashboard-page .actions-cell {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  body.admin-dashboard-page .sidebar ul,
+  body.user-dashboard-page .sidebar ul {
+    grid-template-columns: none !important;
+  }
+
+  body.admin-dashboard-page .sidebar ul li a,
+  body.user-dashboard-page .sidebar ul li a {
+    padding: 0.65rem 0.9rem;
+  }
+}
+
+@media (max-width: 390px) {
+  body.admin-dashboard-page .sidebar ul li a,
+  body.user-dashboard-page .sidebar ul li a,
+  body.admin-dashboard-page .theme-toggle,
+  body.user-dashboard-page .theme-toggle {
+    font-size: 0.8rem;
+    padding: 0.55rem 0.75rem !important;
+  }
+
+  body.admin-dashboard-page table {
+    min-width: 680px;
+  }
+
+  body.admin-dashboard-page .actions-cell {
+    gap: 0.35rem;
+  }
+
+  body.admin-dashboard-page .actions-cell button {
+    min-height: 32px;
+    font-size: 0.72rem;
+    padding: 0.42rem 0.6rem !important;
+  }
+}
