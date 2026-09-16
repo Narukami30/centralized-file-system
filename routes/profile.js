@@ -87,6 +87,13 @@ router.post("/user/profile", requireAuth({ mode: "json" }), (req, res) => {
 
       user.fullname = fullname;
       if (req.file) {
+        // 🔐 Fix #10: Clean up old profile photo file
+        if (user.avatar) {
+          const oldPath = path.join(__dirname, '../uploads', user.avatar);
+          fs.unlink(oldPath, (err) => {
+            if (err) logger.warn('Could not delete old avatar', { file: user.avatar, error: err.message });
+          });
+        }
         user.avatar = req.file.filename;
       }
       await user.save();
@@ -199,6 +206,17 @@ router.post("/invite/accept", registerLimiter, async (req, res) => {
     const existingUser = await User.findOne({ email: invitation.email });
     if (existingUser) {
       pushFlash(req, res, "error", "An account with this email already exists");
+      return res.redirect("/auth/login");
+    }
+
+    // Issue #22 Fix: Check if this email/branch combo already accepted invitation
+    const existingAcceptedInvite = await Invitation.findOne({
+      email: invitation.email,
+      branch: invitation.branch,
+      status: "accepted"
+    });
+    if (existingAcceptedInvite) {
+      pushFlash(req, res, "error", "This invitation has already been activated for this branch");
       return res.redirect("/auth/login");
     }
 
